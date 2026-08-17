@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: mapuescuela
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mapuescuela
+    username: mapuescuela
+    password: mapuescuela_dev
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+flowable:
+  database-schema-update: true
+  async-executor-activate: true
+
+server:
+  port: 8080

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+             id="Definitions_MapuescuelaASIS"
+             targetNamespace="https://mapuescuela.cl/bpmn">
+  <process id="procesoVentaMapuescuelaASIS" name="Venta actual manual - Mapuescuela (AS-IS)" isExecutable="false">
+    <documentation>Representacion del proceso actual, predominantemente manual. No incluye catalogo web, carrito, automatizacion, temporizadores ni Flowable.</documentation>
+    <laneSet id="LaneSet_ASIS">
+      <lane id="LaneASIS_Cliente" name="Cliente">
+        <flowNodeRef>StartEvent_ASIS</flowNodeRef>
+        <flowNodeRef>Task_ConsultarProductos</flowNodeRef>
+        <flowNodeRef>Task_ConfirmarYTransferir</flowNodeRef>
+        <flowNodeRef>Task_EnviarComprobanteMensaje</flowNodeRef>
+      </lane>
+      <lane id="LaneASIS_Voluntario" name="Voluntario de Mapuescuela">
+        <flowNodeRef>Task_RevisarDisponibilidad</flowNodeRef>
+        <flowNodeRef>Task_InformarDatos</flowNodeRef>
+        <flowNodeRef>Task_RevisarComprobanteManual</flowNodeRef>
+        <flowNodeRef>Task_PrepararArticulo</flowNodeRef>
+        <flowNodeRef>Task_CoordinarEntrega</flowNodeRef>
+        <flowNodeRef>Gateway_ModalidadASIS</flowNodeRef>
+        <flowNodeRef>Task_CoordinarRetiro</flowNodeRef>
+        <flowNodeRef>Task_CoordinarDespacho</flowNodeRef>
+        <flowNodeRef>Gateway_UnirEntrega</flowNodeRef>
+        <flowNodeRef>Task_RegistrarVentaManual</flowNodeRef>
+        <flowNodeRef>EndEvent_ASIS</flowNodeRef>
+      </lane>
+    </laneSet>
+
+    <startEvent id="StartEvent_ASIS" name="Cliente consulta un producto">
+      <outgoing>Flow_ASIS_Inicio_Consultar</outgoing>
+    </startEvent>
+    <manualTask id="Task_ConsultarProductos" name="Consultar productos por Instagram o mensaje">
+      <incoming>Flow_ASIS_Inicio_Consultar</incoming><outgoing>Flow_ASIS_Consultar_Disponibilidad</outgoing>
+    </manualTask>
+    <manualTask id="Task_RevisarDisponibilidad" name="Revisar disponibilidad manualmente">
+      <incoming>Flow_ASIS_Consultar_Disponibilidad</incoming><outgoing>Flow_ASIS_Disponibilidad_Informar</outgoing>
+    </manualTask>
+    <manualTask id="Task_InformarDatos" name="Informar disponibilidad, precio y datos de transferencia">
+      <incoming>Flow_ASIS_Disponibilidad_Informar</incoming><outgoing>Flow_ASIS_Informar_Transferir</outgoing>
+    </manualTask>
+    <manualTask id="Task_ConfirmarYTransferir" name="Confirmar compra y realizar transferencia">
+      <incoming>Flow_ASIS_Informar_Transferir</incoming><outgoing>Flow_ASIS_Transferir_Comprobante</outgoing>
+    </manualTask>
+    <manualTask id="Task_EnviarComprobanteMensaje" name="Enviar comprobante por mensaje">
+      <incoming>Flow_ASIS_Transferir_Comprobante</incoming><outgoing>Flow_ASIS_Comprobante_Revisar</outgoing>
+    </manualTask>
+    <manualTask id="Task_RevisarComprobanteManual" name="Revisar comprobante manualmente">
+      <incoming>Flow_ASIS_Comprobante_Revisar</incoming><outgoing>Flow_ASIS_Revisar_Preparar</outgoing>
+    </manualTask>
+    <manualTask id="Task_PrepararArticulo" name="Preparar articulo para entrega">
+      <incoming>Flow_ASIS_Revisar_Preparar</incoming><outgoing>Flow_ASIS_Preparar_Coordinar</outgoing>
+    </manualTask>
+    <manualTask id="Task_CoordinarEntrega" name="Coordinar modalidad de entrega con cliente">
+      <incoming>Flow_ASIS_Preparar_Coordinar</incoming><outgoing>Flow_ASIS_Coordinar_Gateway</outgoing>
+    </manualTask>
+    <exclusiveGateway id="Gateway_ModalidadASIS" name="¿Retiro o despacho?">
+      <incoming>Flow_ASIS_Coordinar_Gateway</incoming><outgoing>Flow_ASIS_Retiro</outgoing><outgoing>Flow_ASIS_Despacho</outgoing>
+    </exclusiveGateway>
+    <manualTask id="Task_CoordinarRetiro" name="Coordinar retiro presencial">
+      <incoming>Flow_ASIS_Retiro</incoming><outgoing>Flow_ASIS_Retiro_Unir</outgoing>
+    </manualTask>
+    <manualTask id="Task_CoordinarDespacho" name="Coordinar despacho manualmente">
+      <incoming>Flow_ASIS_Despacho</incoming><outgoing>Flow_ASIS_Despacho_Unir</outgoing>
+    </manualTask>
+    <exclusiveGateway id="Gateway_UnirEntrega" name="Entrega coordinada">
+      <incoming>Flow_ASIS_Retiro_Unir</incoming><incoming>Flow_ASIS_Despacho_Unir</incoming><outgoing>Flow_ASIS_Unir_Registrar</outgoing>
+    </exclusiveGateway>
+    <manualTask id="Task_RegistrarVentaManual" name="Registrar venta y disponibilidad manualmente">
+      <incoming>Flow_ASIS_Unir_Registrar</incoming><outgoing>Flow_ASIS_Registrar_Fin</outgoing>
+    </manualTask>
+    <endEvent id="EndEvent_ASIS" name="Venta finalizada">
+      <incoming>Flow_ASIS_Registrar_Fin</incoming>
+    </endEvent>
+
+    <sequenceFlow id="Flow_ASIS_Inicio_Consultar" sourceRef="StartEvent_ASIS" targetRef="Task_ConsultarProductos" />
+    <sequenceFlow id="Flow_ASIS_Consultar_Disponibilidad" sourceRef="Task_ConsultarProductos" targetRef="Task_RevisarDisponibilidad" />
+    <sequenceFlow id="Flow_ASIS_Disponibilidad_Informar" sourceRef="Task_RevisarDisponibilidad" targetRef="Task_InformarDatos" />
+    <sequenceFlow id="Flow_ASIS_Informar_Transferir" sourceRef="Task_InformarDatos" targetRef="Task_ConfirmarYTransferir" />
+    <sequenceFlow id="Flow_ASIS_Transferir_Comprobante" sourceRef="Task_ConfirmarYTransferir" targetRef="Task_EnviarComprobanteMensaje" />
+    <sequenceFlow id="Flow_ASIS_Comprobante_Revisar" sourceRef="Task_EnviarComprobanteMensaje" targetRef="Task_RevisarComprobanteManual" />
+    <sequenceFlow id="Flow_ASIS_Revisar_Preparar" sourceRef="Task_RevisarComprobanteManual" targetRef="Task_PrepararArticulo" />
+    <sequenceFlow id="Flow_ASIS_Preparar_Coordinar" sourceRef="Task_PrepararArticulo" targetRef="Task_CoordinarEntrega" />
+    <sequenceFlow id="Flow_ASIS_Coordinar_Gateway" sourceRef="Task_CoordinarEntrega" targetRef="Gateway_ModalidadASIS" />
+    <sequenceFlow id="Flow_ASIS_Retiro" name="Retiro" sourceRef="Gateway_ModalidadASIS" targetRef="Task_CoordinarRetiro" />
+    <sequenceFlow id="Flow_ASIS_Despacho" name="Despacho" sourceRef="Gateway_ModalidadASIS" targetRef="Task_CoordinarDespacho" />
+    <sequenceFlow id="Flow_ASIS_Retiro_Unir" sourceRef="Task_CoordinarRetiro" targetRef="Gateway_UnirEntrega" />
+    <sequenceFlow id="Flow_ASIS_Despacho_Unir" sourceRef="Task_CoordinarDespacho" targetRef="Gateway_UnirEntrega" />
+    <sequenceFlow id="Flow_ASIS_Unir_Registrar" sourceRef="Gateway_UnirEntrega" targetRef="Task_RegistrarVentaManual" />
+    <sequenceFlow id="Flow_ASIS_Registrar_Fin" sourceRef="Task_RegistrarVentaManual" targetRef="EndEvent_ASIS" />
+  </process>
+
+  <bpmndi:BPMNDiagram id="BPMNDiagram_ASIS">
+    <bpmndi:BPMNPlane id="BPMNPlane_ASIS" bpmnElement="procesoVentaMapuescuelaASIS">
+      <bpmndi:BPMNShape id="LaneASIS_Cliente_di" bpmnElement="LaneASIS_Cliente" isHorizontal="true"><dc:Bounds x="40" y="40" width="2500" height="150" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LaneASIS_Voluntario_di" bpmnElement="LaneASIS_Voluntario" isHorizontal="true"><dc:Bounds x="40" y="190" width="2500" height="280" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_ASIS_di" bpmnElement="StartEvent_ASIS"><dc:Bounds x="100" y="97" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ConsultarProductos_di" bpmnElement="Task_ConsultarProductos"><dc:Bounds x="180" y="80" width="150" height="70" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RevisarDisponibilidad_di" bpmnElement="Task_RevisarDisponibilidad"><dc:Bounds x="390" y="245" width="150" height="70" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_InformarDatos_di" bpmnElement="Task_InformarDatos"><dc:Bounds x="590" y="245" width="170" height="70" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_ConfirmarYTransferir_di" bpmnElement="Task_ConfirmarYTransferir"><dc:Bounds x="810" y="80" width="150" height="70" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_EnviarComprobanteMensaje_di" bpmnElement="Task_EnviarComprobanteMensaje"><dc:Bounds x="1010" y="80" width="155" height="70" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RevisarComprobanteManual_di" bpmnElement="Task_RevisarComprobanteManual"><dc:Bounds x="1210" y="245" width="155" height="70" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_PrepararArticulo_di" bpmnElement="Task_PrepararArticulo"><dc:Bounds x="1410" y="245" width="140" height="70" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CoordinarEntrega_di" bpmnElement="Task_CoordinarEntrega"><dc:Bounds x="1600" y="245" width="160" height="70" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_ModalidadASIS_di" bpmnElement="Gateway_ModalidadASIS" isMarkerVisible="true"><dc:Bounds x="1810" y="255" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CoordinarRetiro_di" bpmnElement="Task_CoordinarRetiro"><dc:Bounds x="1910" y="215" width="150" height="70" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_CoordinarDespacho_di" bpmnElement="Task_CoordinarDespacho"><dc:Bounds x="1910" y="340" width="150" height="70" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_UnirEntrega_di" bpmnElement="Gateway_UnirEntrega" isMarkerVisible="true"><dc:Bounds x="2110" y="255" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_RegistrarVentaManual_di" bpmnElement="Task_RegistrarVentaManual"><dc:Bounds x="2200" y="245" width="170" height="70" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_ASIS_di" bpmnElement="EndEvent_ASIS"><dc:Bounds x="2410" y="262" width="36" height="36" /></bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Flow_ASIS_Inicio_Consultar_di" bpmnElement="Flow_ASIS_Inicio_Consultar"><di:waypoint x="136" y="115" /><di:waypoint x="180" y="115" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ASIS_Consultar_Disponibilidad_di" bpmnElement="Flow_ASIS_Consultar_Disponibilidad"><di:waypoint x="330" y="115" /><di:waypoint x="360" y="115" /><di:waypoint x="360" y="280" /><di:waypoint x="390" y="280" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ASIS_Disponibilidad_Informar_di" bpmnElement="Flow_ASIS_Disponibilidad_Informar"><di:waypoint x="540" y="280" /><di:waypoint x="590" y="280" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ASIS_Informar_Transferir_di" bpmnElement="Flow_ASIS_Informar_Transferir"><di:waypoint x="760" y="280" /><di:waypoint x="785" y="280" /><di:waypoint x="785" y="115" /><di:waypoint x="810" y="115" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ASIS_Transferir_Comprobante_di" bpmnElement="Flow_ASIS_Transferir_Comprobante"><di:waypoint x="960" y="115" /><di:waypoint x="1010" y="115" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ASIS_Comprobante_Revisar_di" bpmnElement="Flow_ASIS_Comprobante_Revisar"><di:waypoint x="1165" y="115" /><di:waypoint x="1185" y="115" /><di:waypoint x="1185" y="280" /><di:waypoint x="1210" y="280" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ASIS_Revisar_Preparar_di" bpmnElement="Flow_ASIS_Revisar_Preparar"><di:waypoint x="1365" y="280" /><di:waypoint x="1410" y="280" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ASIS_Preparar_Coordinar_di" bpmnElement="Flow_ASIS_Preparar_Coordinar"><di:waypoint x="1550" y="280" /><di:waypoint x="1600" y="280" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ASIS_Coordinar_Gateway_di" bpmnElement="Flow_ASIS_Coordinar_Gateway"><di:waypoint x="1760" y="280" /><di:waypoint x="1810" y="280" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ASIS_Retiro_di" bpmnElement="Flow_ASIS_Retiro"><di:waypoint x="1860" y="280" /><di:waypoint x="1885" y="280" /><di:waypoint x="1885" y="250" /><di:waypoint x="1910" y="250" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ASIS_Despacho_di" bpmnElement="Flow_ASIS_Despacho"><di:waypoint x="1835" y="305" /><di:waypoint x="1835" y="375" /><di:waypoint x="1910" y="375" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ASIS_Retiro_Unir_di" bpmnElement="Flow_ASIS_Retiro_Unir"><di:waypoint x="2060" y="250" /><di:waypoint x="2110" y="280" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ASIS_Despacho_Unir_di" bpmnElement="Flow_ASIS_Despacho_Unir"><di:waypoint x="2060" y="375" /><di:waypoint x="2085" y="375" /><di:waypoint x="2085" y="280" /><di:waypoint x="2110" y="280" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ASIS_Unir_Registrar_di" bpmnElement="Flow_ASIS_Unir_Registrar"><di:waypoint x="2160" y="280" /><di:waypoint x="2200" y="280" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_ASIS_Registrar_Fin_di" bpmnElement="Flow_ASIS_Registrar_Fin"><di:waypoint x="2370" y="280" /><di:waypoint x="2410" y="280" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

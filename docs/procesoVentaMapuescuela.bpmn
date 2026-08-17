@@ -1,0 +1,512 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:flowable="http://flowable.org/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI" xmlns:design="http://flowable.org/design" typeLanguage="http://www.w3.org/2001/XMLSchema" expressionLanguage="http://www.w3.org/1999/XPath" targetNamespace="https://mapuescuela.cl/bpmn" exporter="Flowable Design" exporterVersion="2026.1.1" design:palette="flowable-work-process-palette">
+  <process id="procesoVentaMapuescuela" name="Venta de productos - Mapuescuela (TO-BE)" isExecutable="true">
+    <documentation>Proceso principal de venta del MVP. Las variables requeridas son pedidoId, modalidadEntrega,
+      pagoAprobado y comprobanteAdjunto. Las tareas de servicio deben actualizar el pedido mediante
+      delegados Java o expresiones Flowable configuradas por la aplicación.</documentation>
+    <extensionElements>
+      <flowable:candidates-type><![CDATA[all]]></flowable:candidates-type>
+      <design:stencilid><![CDATA[BPMNDiagram]]></design:stencilid>
+      <design:creationdate><![CDATA[2026-08-11T20:58:03.146Z]]></design:creationdate>
+      <design:modificationdate><![CDATA[2026-08-12T02:20:26.054Z]]></design:modificationdate>
+    </extensionElements>
+    <laneSet id="LaneSet_VentaTOBE">
+      <lane id="Lane_Cliente" name="Cliente">
+        <flowNodeRef>Event_InicioCompra</flowNodeRef>
+        <flowNodeRef>Task_SeleccionarProductos</flowNodeRef>
+        <flowNodeRef>Task_ConfirmarCompra</flowNodeRef>
+        <flowNodeRef>Task_SeleccionarEntrega</flowNodeRef>
+        <flowNodeRef>Task_AdjuntarComprobante</flowNodeRef>
+        <flowNodeRef>BoundaryEvent_Plazo24Horas</flowNodeRef>
+      </lane>
+      <lane id="Lane_Sistema" name="Sistema / Flowable">
+        <flowNodeRef>Task_CrearPedido</flowNodeRef>
+        <flowNodeRef>Task_CancelarPorVencimiento</flowNodeRef>
+        <flowNodeRef>Task_RechazarPago</flowNodeRef>
+        <flowNodeRef>Task_DescontarInventario</flowNodeRef>
+        <flowNodeRef>Task_MarcarListoRetiro</flowNodeRef>
+        <flowNodeRef>ServiceTask_4</flowNodeRef>
+        <flowNodeRef>Gateway_PagoAprobado</flowNodeRef>
+        <flowNodeRef>Gateway_ModalidadEntrega</flowNodeRef>
+        <flowNodeRef>EndEvent_Vencido</flowNodeRef>
+        <flowNodeRef>EndEvent_PagoRechazado</flowNodeRef>
+        <flowNodeRef>EndEvent_RetiroFinalizado</flowNodeRef>
+        <flowNodeRef>EndEvent_DespachoFinalizado</flowNodeRef>
+      </lane>
+      <lane id="Lane_Voluntario" name="Voluntario / administrador">
+        <flowNodeRef>Task_RevisarComprobante</flowNodeRef>
+        <flowNodeRef>Task_PrepararPedido</flowNodeRef>
+        <flowNodeRef>Task_RegistrarRetiro</flowNodeRef>
+        <flowNodeRef>Task_RegistrarDespacho</flowNodeRef>
+      </lane>
+    </laneSet>
+    <serviceTask id="Task_CancelarPorVencimiento" name="Se cancela el pedido y los productos seleccionados vuelven a estar disponibles" flowable:class="cl.mapuescuela.process.CancelarPedidoDelegate">
+      <documentation>Marca el pedido como CANCELADO. No descuenta stock, por lo que las unidades siguen disponibles.</documentation>
+      <extensionElements>
+        <design:stencilid><![CDATA[ServiceTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </serviceTask>
+    <userTask id="Task_AdjuntarComprobante" name="Adjuntar comprobante de transferencia" flowable:candidateGroups="CLIENTES" flowable:formFieldValidation="false">
+      <documentation>El cliente carga el archivo. La aplicación guarda el comprobante y completa esta tarea.</documentation>
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </userTask>
+    <userTask id="Task_SeleccionarProductos" name="El cliente selecciona uno o más productos" flowable:candidateGroups="CLIENTES" flowable:formFieldValidation="false">
+      <documentation>Representa la selección de uno o más productos disponibles. La aplicación valida el stock sin descontarlo todavía.</documentation>
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </userTask>
+    <serviceTask id="Task_CrearPedido" name="Crear pedido e informar datos de transferencia" flowable:class="cl.mapuescuela.process.CrearPedidoDelegate">
+      <documentation>Crea o confirma el pedido, establece PENDIENTE_DE_PAGO y presenta los datos bancarios.</documentation>
+      <extensionElements>
+        <design:stencilid><![CDATA[ServiceTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </serviceTask>
+    <userTask id="Task_SeleccionarEntrega" name="El cliente selecciona la  modalidad de entrega" flowable:candidateGroups="CLIENTES" flowable:formFieldValidation="false">
+      <documentation>El cliente elige RETIRO o DESPACHO. El valor se guarda en la variable modalidadEntrega.</documentation>
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </userTask>
+    <serviceTask id="Task_RechazarPago" name="Cancelar el pedido e informar al cliente" flowable:class="cl.mapuescuela.process.RechazarPagoDelegate">
+      <extensionElements>
+        <design:stencilid><![CDATA[ServiceTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </serviceTask>
+    <userTask id="Task_ConfirmarCompra" name="El cliente confirma la compra e ingresar sus datos " flowable:candidateGroups="CLIENTES" flowable:formFieldValidation="false">
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </userTask>
+    <serviceTask id="Task_DescontarInventario" name="Se confirma la compra y se actualiza el inventario" flowable:class="cl.mapuescuela.process.AprobarPagoYDescontarStockDelegate">
+      <documentation>La actualización debe ser atómica y validar nuevamente el stock disponible.</documentation>
+      <extensionElements>
+        <design:stencilid><![CDATA[ServiceTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </serviceTask>
+    <userTask id="Task_RegistrarDespacho" name="Registrar despacho o envío" flowable:candidateGroups="VOLUNTARIOS" flowable:formFieldValidation="false">
+      <documentation>Registra voluntario o courier, fecha de envío y número de seguimiento si corresponde.</documentation>
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </userTask>
+    <userTask id="Task_RevisarComprobante" name="Un voluntario revisa el comprobante de pago" flowable:candidateGroups="VOLUNTARIOS" flowable:formFieldValidation="false">
+      <documentation>El voluntario aprueba o rechaza e informa la variable booleana pagoAprobado.</documentation>
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </userTask>
+    <serviceTask id="Task_MarcarListoRetiro" name="Marcar pedido listo para retiro" flowable:class="cl.mapuescuela.process.MarcarListoRetiroDelegate">
+      <extensionElements>
+        <design:stencilid><![CDATA[ServiceTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </serviceTask>
+    <serviceTask id="ServiceTask_4" name="Marcar pedido listo para despacho" flowable:delegateExpression="${marcarPedidoListoDespachoDelegate}">
+      <extensionElements>
+        <design:stencilid><![CDATA[ServiceTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </serviceTask>
+    <userTask id="Task_PrepararPedido" name="Preparar pedido" flowable:candidateGroups="VOLUNTARIOS" flowable:formFieldValidation="false">
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </userTask>
+    <userTask id="Task_RegistrarRetiro" name="Registrar retiro del pedido" flowable:candidateGroups="VOLUNTARIOS" flowable:formFieldValidation="false">
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </userTask>
+    <exclusiveGateway id="Gateway_PagoAprobado" name="¿Pago aprobado?">
+      <extensionElements>
+        <design:stencilid><![CDATA[Exclusive_Databased_Gateway]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+    </exclusiveGateway>
+    <exclusiveGateway id="Gateway_ModalidadEntrega" name="¿Modalidad de entrega?">
+      <extensionElements>
+        <design:stencilid><![CDATA[Exclusive_Databased_Gateway]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+    </exclusiveGateway>
+    <startEvent id="Event_InicioCompra" name="Cliente inicia compra" flowable:formFieldValidation="false">
+      <extensionElements>
+        <flowable:work-form-field-validation><![CDATA[false]]></flowable:work-form-field-validation>
+        <design:stencilid><![CDATA[StartNoneEvent]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+    </startEvent>
+    <endEvent id="EndEvent_Vencido" name="Se registra la cancelación del pedido">
+      <extensionElements>
+        <design:stencilid><![CDATA[EndNoneEvent]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+    </endEvent>
+    <endEvent id="EndEvent_PagoRechazado" name="Pago rechazado / pedido cancelado">
+      <extensionElements>
+        <design:stencilid><![CDATA[EndNoneEvent]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+    </endEvent>
+    <endEvent id="EndEvent_RetiroFinalizado" name="Pedido finalizado">
+      <extensionElements>
+        <design:stencilid><![CDATA[EndNoneEvent]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+    </endEvent>
+    <endEvent id="EndEvent_DespachoFinalizado" name="Pedido finalizado">
+      <extensionElements>
+        <design:stencilid><![CDATA[EndNoneEvent]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+    </endEvent>
+    <sequenceFlow id="Flow_Cancelar_FinVencido" sourceRef="Task_CancelarPorVencimiento" targetRef="EndEvent_Vencido">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <boundaryEvent id="BoundaryEvent_Plazo24Horas" name="24 horas sin adjuntar el comprobante" attachedToRef="Task_AdjuntarComprobante" cancelActivity="true">
+      <extensionElements>
+        <design:stencilid><![CDATA[IntermediateTimerEventBoundary]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+      <timerEventDefinition>
+        <timeDuration>PT24H</timeDuration>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="Flow_Plazo_Cancelar" sourceRef="BoundaryEvent_Plazo24Horas" targetRef="Task_CancelarPorVencimiento">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_AdjuntarComprobante_RevisarComprobante" sourceRef="Task_AdjuntarComprobante" targetRef="Task_RevisarComprobante">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_SeleccionarProductos_ConfirmarCompra" sourceRef="Task_SeleccionarProductos" targetRef="Task_ConfirmarCompra">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_CrearPedido_AdjuntarComprobante" sourceRef="Task_CrearPedido" targetRef="Task_AdjuntarComprobante">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_SeleccionarEntrega_CrearPedido" sourceRef="Task_SeleccionarEntrega" targetRef="Task_CrearPedido">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_RechazarPago_Fin" sourceRef="Task_RechazarPago" targetRef="EndEvent_PagoRechazado">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_ConfirmarCompra_SeleccionarEntrega" sourceRef="Task_ConfirmarCompra" targetRef="Task_SeleccionarEntrega">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_DescontarInventario_Preparar" sourceRef="Task_DescontarInventario" targetRef="Task_PrepararPedido">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_RegistrarDespacho_Fin" sourceRef="Task_RegistrarDespacho" targetRef="EndEvent_DespachoFinalizado">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_RevisarComprobante_GatewayPago" sourceRef="Task_RevisarComprobante" targetRef="Gateway_PagoAprobado">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_MarcarListo_RegistrarRetiro" sourceRef="Task_MarcarListoRetiro" targetRef="Task_RegistrarRetiro">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="SequenceFlow_6" sourceRef="ServiceTask_4" targetRef="Task_RegistrarDespacho">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_Preparar_GatewayModalidad" sourceRef="Task_PrepararPedido" targetRef="Gateway_ModalidadEntrega">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_RegistrarRetiro_Fin" sourceRef="Task_RegistrarRetiro" targetRef="EndEvent_RetiroFinalizado">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_PagoNo_RechazarPago" name="No" sourceRef="Gateway_PagoAprobado" targetRef="Task_RechazarPago">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${pagoAprobado == false}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_PagoSi_DescontarInventario" name="Sí" sourceRef="Gateway_PagoAprobado" targetRef="Task_DescontarInventario">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${pagoAprobado == true}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_Retiro_MarcarListo" name="Retiro" sourceRef="Gateway_ModalidadEntrega" targetRef="Task_MarcarListoRetiro">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${modalidadEntrega == 'RETIRO'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_Despacho_Registrar" name="Despacho" sourceRef="Gateway_ModalidadEntrega" targetRef="ServiceTask_4">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${modalidadEntrega == 'DESPACHO'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_Inicio_SeleccionarProductos" sourceRef="Event_InicioCompra" targetRef="Task_SeleccionarProductos">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_procesoVentaMapuescuela">
+    <bpmndi:BPMNPlane bpmnElement="procesoVentaMapuescuela" id="BPMNPlane_procesoVentaMapuescuela">
+      <bpmndi:BPMNShape bpmnElement="Lane_Cliente" id="BPMNShape_Lane_Cliente" isHorizontal="true">
+        <omgdc:Bounds height="185.0" width="2500.0" x="-600.0" y="0.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Lane_Sistema" id="BPMNShape_Lane_Sistema" isHorizontal="true">
+        <omgdc:Bounds height="225.0" width="2500.0" x="-600.0" y="185.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Lane_Voluntario" id="BPMNShape_Lane_Voluntario" isHorizontal="true">
+        <omgdc:Bounds height="270.0" width="2500.0" x="-600.0" y="410.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_CancelarPorVencimiento" id="BPMNShape_Task_CancelarPorVencimiento">
+        <omgdc:Bounds height="98.0" width="145.00000000000006" x="406.2220815428688" y="377.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_AdjuntarComprobante" id="BPMNShape_Task_AdjuntarComprobante">
+        <omgdc:Bounds height="93.0" width="148.00000000000006" x="403.2220815428688" y="43.77918457131162"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_SeleccionarProductos" id="BPMNShape_Task_SeleccionarProductos">
+        <omgdc:Bounds height="108.0" width="103.0" x="-281.5241329036219" y="120.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_CrearPedido" id="BPMNShape_Task_CrearPedido">
+        <omgdc:Bounds height="83.0" width="134.0" x="174.8895922856558" y="343.42132187436056"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_SeleccionarEntrega" id="BPMNShape_Task_SeleccionarEntrega">
+        <omgdc:Bounds height="99.0" width="109.0" x="187.3895922856558" y="124.5"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_RechazarPago" id="BPMNShape_Task_RechazarPago">
+        <omgdc:Bounds height="70.0" width="150.0" x="865.0" y="405.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_ConfirmarCompra" id="BPMNShape_Task_ConfirmarCompra">
+        <omgdc:Bounds height="108.0" width="95.0" x="-68.8160041948026" y="120.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_DescontarInventario" id="BPMNShape_Task_DescontarInventario">
+        <omgdc:Bounds height="70.0" width="145.0" x="865.0" y="295.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_RegistrarDespacho" id="BPMNShape_Task_RegistrarDespacho">
+        <omgdc:Bounds height="70.0" width="145.0" x="1652.5675199999998" y="384.5"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_RevisarComprobante" id="BPMNShape_Task_RevisarComprobante">
+        <omgdc:Bounds height="70.0" width="140.0" x="590.0" y="295.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_MarcarListoRetiro" id="BPMNShape_Task_MarcarListoRetiro">
+        <omgdc:Bounds height="70.0" width="135.0" x="1391.008" y="295.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="ServiceTask_4" id="BPMNShape_ServiceTask_4">
+        <omgdc:Bounds height="69.0" width="135.0" x="1391.008" y="385.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_PrepararPedido" id="BPMNShape_Task_PrepararPedido">
+        <omgdc:Bounds height="70.0" width="130.0" x="1050.0" y="295.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_RegistrarRetiro" id="BPMNShape_Task_RegistrarRetiro">
+        <omgdc:Bounds height="70.0" width="130.0" x="1632.696" y="295.0"></omgdc:Bounds>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Gateway_PagoAprobado" id="BPMNShape_Gateway_PagoAprobado">
+        <omgdc:Bounds height="40.0" width="40.0" x="780.0" y="312.0"></omgdc:Bounds>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds height="18.0" width="96.0" x="752.0" y="290.0"></omgdc:Bounds>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Gateway_ModalidadEntrega" id="BPMNShape_Gateway_ModalidadEntrega">
+        <omgdc:Bounds height="40.0" width="40.0" x="1225.0" y="310.0"></omgdc:Bounds>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds height="18.0" width="132.0" x="1179.0" y="288.0"></omgdc:Bounds>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Event_InicioCompra" id="BPMNShape_Event_InicioCompra">
+        <omgdc:Bounds height="30.0" width="30.0" x="-496.14216288111317" y="159.0"></omgdc:Bounds>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds height="18.0" width="114.0" x="-538.1421628811131" y="193.0"></omgdc:Bounds>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="EndEvent_Vencido" id="BPMNShape_EndEvent_Vencido">
+        <omgdc:Bounds height="28.0" width="28.0" x="463.2220815428688" y="584.0"></omgdc:Bounds>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds height="18.0" width="201.0" x="381.2220815428688" y="637.0"></omgdc:Bounds>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="EndEvent_PagoRechazado" id="BPMNShape_EndEvent_PagoRechazado">
+        <omgdc:Bounds height="28.0" width="28.0" x="1101.0" y="426.0"></omgdc:Bounds>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds height="18.0" width="197.0" x="1016.5" y="458.0"></omgdc:Bounds>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="EndEvent_RetiroFinalizado" id="BPMNShape_EndEvent_RetiroFinalizado">
+        <omgdc:Bounds height="28.0" width="28.0" x="1864.6" y="316.0"></omgdc:Bounds>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds height="18.0" width="95.0" x="1831.1" y="348.0"></omgdc:Bounds>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="EndEvent_DespachoFinalizado" id="BPMNShape_EndEvent_DespachoFinalizado">
+        <omgdc:Bounds height="28.0" width="28.0" x="1864.6" y="405.5"></omgdc:Bounds>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds height="18.0" width="95.0" x="1829.85584" y="454.91823999999997"></omgdc:Bounds>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="BoundaryEvent_Plazo24Horas" id="BPMNShape_BoundaryEvent_Plazo24Horas">
+        <omgdc:Bounds height="30.0" width="30.0" x="462.2220815428688" y="121.77918457131162"></omgdc:Bounds>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds height="18.0" width="204.0" x="407.7220815428688" y="175.04568242275417"></omgdc:Bounds>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="Flow_ConfirmarCompra_SeleccionarEntrega" id="BPMNEdge_Flow_ConfirmarCompra_SeleccionarEntrega" flowable:sourceDockerX="48.0" flowable:sourceDockerY="54.0" flowable:targetDockerX="55.0" flowable:targetDockerY="50.0">
+        <omgdi:waypoint x="26.183995805197398" y="174.0"></omgdi:waypoint>
+        <omgdi:waypoint x="113.28679404542659" y="174.0"></omgdi:waypoint>
+        <omgdi:waypoint x="113.28679404542659" y="173.75"></omgdi:waypoint>
+        <omgdi:waypoint x="187.3895922856558" y="173.8940536272426"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_RegistrarRetiro_Fin" id="BPMNEdge_Flow_RegistrarRetiro_Fin" flowable:sourceDockerX="65.0" flowable:sourceDockerY="35.0" flowable:targetDockerX="14.0" flowable:targetDockerY="14.0">
+        <omgdi:waypoint x="1762.696" y="330.00000000000006"></omgdi:waypoint>
+        <omgdi:waypoint x="1864.6" y="330.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_RechazarPago_Fin" id="BPMNEdge_Flow_RechazarPago_Fin" flowable:sourceDockerX="75.0" flowable:sourceDockerY="35.0" flowable:targetDockerX="14.0" flowable:targetDockerY="14.0">
+        <omgdi:waypoint x="1015.0" y="440.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1101.0" y="440.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Plazo_Cancelar" id="BPMNEdge_Flow_Plazo_Cancelar" flowable:sourceDockerX="15.0" flowable:sourceDockerY="15.0" flowable:targetDockerX="73.0" flowable:targetDockerY="49.0">
+        <omgdi:waypoint x="477.2220815428688" y="151.77918457131162"></omgdi:waypoint>
+        <omgdi:waypoint x="477.2220815428688" y="270.8895922856558"></omgdi:waypoint>
+        <omgdi:waypoint x="476.9720815428688" y="270.8895922856558"></omgdi:waypoint>
+        <omgdi:waypoint x="478.1692495229961" y="377.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="SequenceFlow_6" id="BPMNEdge_SequenceFlow_6" flowable:sourceDockerX="68.0" flowable:sourceDockerY="35.0" flowable:targetDockerX="73.0" flowable:targetDockerY="35.0">
+        <omgdi:waypoint x="1526.008" y="415.31398706028324"></omgdi:waypoint>
+        <omgdi:waypoint x="1575.6019999999999" y="412.2384148272119"></omgdi:waypoint>
+        <omgdi:waypoint x="1575.6019999999999" y="419.49999999999994"></omgdi:waypoint>
+        <omgdi:waypoint x="1652.5675199999998" y="419.49999999999994"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_CrearPedido_AdjuntarComprobante" id="BPMNEdge_Flow_CrearPedido_AdjuntarComprobante" flowable:sourceDockerX="67.0" flowable:sourceDockerY="42.0" flowable:targetDockerX="74.0" flowable:targetDockerY="47.0">
+        <omgdi:waypoint x="308.8895922856558" y="384.7966002063632"></omgdi:waypoint>
+        <omgdi:waypoint x="355.0558369142623" y="384.71066093718036"></omgdi:waypoint>
+        <omgdi:waypoint x="355.0558369142623" y="90.27918457131167"></omgdi:waypoint>
+        <omgdi:waypoint x="403.2220815428688" y="90.27918457131166"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Cancelar_FinVencido" id="BPMNEdge_Flow_Cancelar_FinVencido" flowable:sourceDockerX="73.0" flowable:sourceDockerY="49.0" flowable:targetDockerX="14.0" flowable:targetDockerY="14.0">
+        <omgdi:waypoint x="477.89357912740985" y="475.0"></omgdi:waypoint>
+        <omgdi:waypoint x="476.9720815428688" y="529.5"></omgdi:waypoint>
+        <omgdi:waypoint x="477.2220815428688" y="529.5"></omgdi:waypoint>
+        <omgdi:waypoint x="477.2220815428688" y="584.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_SeleccionarEntrega_CrearPedido" id="BPMNEdge_Flow_SeleccionarEntrega_CrearPedido" flowable:sourceDockerX="55.0" flowable:sourceDockerY="50.0" flowable:targetDockerX="67.0" flowable:targetDockerY="42.0">
+        <omgdi:waypoint x="241.74458889178024" y="223.5"></omgdi:waypoint>
+        <omgdi:waypoint x="241.3932959893595" y="343.42132187436056"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Despacho_Registrar" id="BPMNEdge_Flow_Despacho_Registrar" flowable:sourceDockerX="20.0" flowable:sourceDockerY="20.0" flowable:targetDockerX="68.0" flowable:targetDockerY="35.0">
+        <omgdi:waypoint x="1245.0" y="350.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1245.0" y="411.1061897152262"></omgdi:waypoint>
+        <omgdi:waypoint x="1391.008" y="416.84631866617536"></omgdi:waypoint>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds height="18.0" width="55.0" x="1302.9981696" y="398.55027456000005"></omgdc:Bounds>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_RegistrarDespacho_Fin" id="BPMNEdge_Flow_RegistrarDespacho_Fin" flowable:sourceDockerX="73.0" flowable:sourceDockerY="35.0" flowable:targetDockerX="14.0" flowable:targetDockerY="14.0">
+        <omgdi:waypoint x="1797.5675199999998" y="419.49999999999994"></omgdi:waypoint>
+        <omgdi:waypoint x="1864.6" y="419.5"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Inicio_SeleccionarProductos" id="BPMNEdge_Flow_Inicio_SeleccionarProductos" flowable:sourceDockerX="15.0" flowable:sourceDockerY="15.0" flowable:targetDockerX="52.0" flowable:targetDockerY="54.0">
+        <omgdi:waypoint x="-466.14216288111317" y="174.0"></omgdi:waypoint>
+        <omgdi:waypoint x="-281.5241329036219" y="174.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_MarcarListo_RegistrarRetiro" id="BPMNEdge_Flow_MarcarListo_RegistrarRetiro" flowable:sourceDockerX="68.0" flowable:sourceDockerY="35.0" flowable:targetDockerX="65.0" flowable:targetDockerY="35.0">
+        <omgdi:waypoint x="1526.008" y="330.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1632.696" y="330.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Preparar_GatewayModalidad" id="BPMNEdge_Flow_Preparar_GatewayModalidad" flowable:sourceDockerX="65.0" flowable:sourceDockerY="35.0" flowable:targetDockerX="20.0" flowable:targetDockerY="20.0">
+        <omgdi:waypoint x="1180.0" y="330.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1225.0" y="330.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_PagoSi_DescontarInventario" id="BPMNEdge_Flow_PagoSi_DescontarInventario" flowable:sourceDockerX="20.0" flowable:sourceDockerY="20.0" flowable:targetDockerX="73.0" flowable:targetDockerY="35.0">
+        <omgdi:waypoint x="820.0" y="332.0"></omgdi:waypoint>
+        <omgdi:waypoint x="865.0" y="330.0"></omgdi:waypoint>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds height="18.0" width="10.0" x="835.0" y="310.0"></omgdc:Bounds>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Retiro_MarcarListo" id="BPMNEdge_Flow_Retiro_MarcarListo" flowable:sourceDockerX="20.0" flowable:sourceDockerY="20.0" flowable:targetDockerX="68.0" flowable:targetDockerY="35.0">
+        <omgdi:waypoint x="1265.0" y="330.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1391.008" y="330.0"></omgdi:waypoint>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds height="18.0" width="33.0" x="1318.69835264" y="305.0"></omgdc:Bounds>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_DescontarInventario_Preparar" id="BPMNEdge_Flow_DescontarInventario_Preparar" flowable:sourceDockerX="73.0" flowable:sourceDockerY="35.0" flowable:targetDockerX="65.0" flowable:targetDockerY="35.0">
+        <omgdi:waypoint x="1010.0" y="330.0"></omgdi:waypoint>
+        <omgdi:waypoint x="1050.0" y="330.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_RevisarComprobante_GatewayPago" id="BPMNEdge_Flow_RevisarComprobante_GatewayPago" flowable:sourceDockerX="70.0" flowable:sourceDockerY="35.0" flowable:targetDockerX="20.0" flowable:targetDockerY="20.0">
+        <omgdi:waypoint x="730.0" y="330.0"></omgdi:waypoint>
+        <omgdi:waypoint x="780.0" y="332.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_SeleccionarProductos_ConfirmarCompra" id="BPMNEdge_Flow_SeleccionarProductos_ConfirmarCompra" flowable:sourceDockerX="52.0" flowable:sourceDockerY="54.0" flowable:targetDockerX="48.0" flowable:targetDockerY="54.0">
+        <omgdi:waypoint x="-178.52413290362188" y="174.0"></omgdi:waypoint>
+        <omgdi:waypoint x="-68.8160041948026" y="174.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_AdjuntarComprobante_RevisarComprobante" id="BPMNEdge_Flow_AdjuntarComprobante_RevisarComprobante" flowable:sourceDockerX="74.0" flowable:sourceDockerY="47.0" flowable:targetDockerX="70.0" flowable:targetDockerY="35.0">
+        <omgdi:waypoint x="551.2220815428689" y="90.27918457131162"></omgdi:waypoint>
+        <omgdi:waypoint x="660.0" y="90.27918457131163"></omgdi:waypoint>
+        <omgdi:waypoint x="660.0" y="295.0"></omgdi:waypoint>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_PagoNo_RechazarPago" id="BPMNEdge_Flow_PagoNo_RechazarPago" flowable:sourceDockerX="20.0" flowable:sourceDockerY="20.0" flowable:targetDockerX="75.0" flowable:targetDockerY="35.0">
+        <omgdi:waypoint x="800.0" y="352.0"></omgdi:waypoint>
+        <omgdi:waypoint x="800.0" y="440.0"></omgdi:waypoint>
+        <omgdi:waypoint x="865.0" y="440.0"></omgdi:waypoint>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds height="18.0" width="16.0" x="810.0" y="390.0"></omgdc:Bounds>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

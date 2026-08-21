@@ -7,9 +7,11 @@ import java.time.LocalDateTime;
 public record ComprobantePagoResponse(
         Long id,
         Long pedidoId,
-        String archivoUrl,
-        String observacion,
+        String codigoPedido,
+        String nombreArchivo,
+        String rutaArchivo,
+        LocalDateTime fechaCarga,
         DecisionPago decision,
-        LocalDateTime fechaCarga
+        String observacion
 ) {
 }

@@ -42,7 +42,8 @@ public class ComprobantePago {
     @Column(length = 1_000)
     private String observacion;
 
-    protected ComprobantePago() {
+    //Se cambia el constructor de privado a público para facilitar las pruebas
+    public ComprobantePago() {
     }
 
     public Long getId() { return id; }

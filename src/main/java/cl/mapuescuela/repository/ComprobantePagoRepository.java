@@ -7,4 +7,6 @@ import java.util.Optional;
 
 public interface ComprobantePagoRepository extends JpaRepository<ComprobantePago, Long> {
     Optional<ComprobantePago> findByPedidoId(Long pedidoId);
+
+    boolean existsByPedidoId(Long pedidoId);
 }

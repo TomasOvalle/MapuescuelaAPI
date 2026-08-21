@@ -46,11 +46,12 @@ public class ComprobantePagoService {
             );
         }
 
-        ComprobantePago comprobante = new ComprobantePago(
-                pedido,
-                request.archivoUrl(),
-                request.observacion()
-        );
+        ComprobantePago comprobante = new ComprobantePago();
+
+        comprobante.setPedido(pedido);
+        comprobante.setNombreArchivo(request.nombreArchivo());
+        comprobante.setRutaArchivo(request.rutaArchivo());
+        comprobante.setObservacion(request.observacion());
 
         pedido.setEstado(EstadoPedido.PAGO_EN_REVISION);
 
@@ -72,15 +73,28 @@ public class ComprobantePagoService {
         return toResponse(comprobante);
     }
 
+    @Transactional(readOnly = true)
+    public ComprobantePagoResponse buscarPorId(Long id) {
+        ComprobantePago comprobante = comprobantePagoRepository
+                .findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Comprobante no encontrado: " + id)
+                );
+        return toResponse(comprobante);
+    }
+
     private ComprobantePagoResponse toResponse(
             ComprobantePago comprobante
     ) {
         return new ComprobantePagoResponse(
                 comprobante.getId(),
                 comprobante.getPedido().getId(),
-                comprobante.getArchivoUrl(),
-                comprobante.getObservacion(),
+                comprobante.getPedido().getCodigo(),
+                comprobante.getNombreArchivo(),
+                comprobante.getRutaArchivo(),
+                comprobante.getFechaCarga(),
                 comprobante.getDecision(),
-                comprobante.getFechaCarga()
+                comprobante.getObservacion()
         );
+    }
 }

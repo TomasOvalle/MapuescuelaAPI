@@ -9,6 +9,8 @@ import cl.mapuescuela.entity.EstadoPedido;
 import cl.mapuescuela.entity.EstadoProducto;
 import cl.mapuescuela.entity.Pedido;
 import cl.mapuescuela.entity.Producto;
+import cl.mapuescuela.exception.BusinessRuleException;
+import cl.mapuescuela.exception.ResourceNotFoundException;
 import cl.mapuescuela.repository.ComprobantePagoRepository;
 import cl.mapuescuela.repository.PedidoRepository;
 import org.springframework.stereotype.Service;
@@ -69,14 +71,14 @@ public class PagoService {
     private Pedido obtenerPedido(Long pedidoId) {
         return pedidoRepository.findById(pedidoId)
                 .orElseThrow(() ->
-                        new RuntimeException("Pedido no encontrado: " + pedidoId)
+                        new ResourceNotFoundException("Pedido no encontrado: " + pedidoId)
                 );
     }
 
     private ComprobantePago obtenerComprobantePorPedido(Long pedidoId) {
         return comprobantePagoRepository.findByPedidoId(pedidoId)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "No existe comprobante para el pedido: " + pedidoId
                         )
                 );
@@ -84,7 +86,7 @@ public class PagoService {
 
     private void validarPedidoEnRevision(Pedido pedido) {
         if (pedido.getEstado() != EstadoPedido.PAGO_EN_REVISION) {
-            throw new RuntimeException(
+            throw new BusinessRuleException(
                     "Solo se puede revisar el pago de un pedido en estado PAGO_EN_REVISION"
             );
         }
@@ -92,7 +94,7 @@ public class PagoService {
 
     private void validarComprobantePendiente(ComprobantePago comprobante) {
         if (comprobante.getDecision() != DecisionPago.PENDIENTE) {
-            throw new RuntimeException(
+            throw new BusinessRuleException(
                     "El comprobante ya fue revisado"
             );
         }
@@ -104,7 +106,7 @@ public class PagoService {
             Integer cantidad = detalle.getCantidad();
 
             if (producto.getStock() < cantidad) {
-                throw new RuntimeException(
+                throw new BusinessRuleException(
                         "Stock insuficiente para el producto: " + producto.getId()
                 );
             }

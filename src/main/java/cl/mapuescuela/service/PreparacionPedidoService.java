@@ -4,6 +4,8 @@ import cl.mapuescuela.dto.pedido.CambioEstadoPedidoResponse;
 import cl.mapuescuela.entity.EstadoPedido;
 import cl.mapuescuela.entity.ModalidadEntrega;
 import cl.mapuescuela.entity.Pedido;
+import cl.mapuescuela.exception.BusinessRuleException;
+import cl.mapuescuela.exception.ResourceNotFoundException;
 import cl.mapuescuela.repository.PedidoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +25,7 @@ public class PreparacionPedidoService {
         EstadoPedido estadoAnterior = pedido.getEstado();
 
         if (estadoAnterior != EstadoPedido.PAGO_APROBADO) {
-            throw new RuntimeException(
+            throw new BusinessRuleException(
                     "Solo se puede iniciar preparación de un pedido con pago aprobado"
             );
         }
@@ -46,13 +48,13 @@ public class PreparacionPedidoService {
         EstadoPedido estadoAnterior = pedido.getEstado();
 
         if (estadoAnterior != EstadoPedido.EN_PREPARACION) {
-            throw new RuntimeException(
+            throw new BusinessRuleException(
                     "Solo se puede marcar como listo para retiro un pedido en preparación"
             );
         }
 
         if (pedido.getModalidadEntrega() != ModalidadEntrega.RETIRO) {
-            throw new RuntimeException(
+            throw new BusinessRuleException(
                     "Solo los pedidos con modalidad RETIRO pueden marcarse como LISTO_PARA_RETIRO"
             );
         }
@@ -75,13 +77,13 @@ public class PreparacionPedidoService {
         EstadoPedido estadoAnterior = pedido.getEstado();
 
         if (estadoAnterior != EstadoPedido.EN_PREPARACION) {
-            throw new RuntimeException(
+            throw new BusinessRuleException(
                     "Solo se puede marcar como enviado un pedido en preparación"
             );
         }
 
         if (pedido.getModalidadEntrega() != ModalidadEntrega.DESPACHO) {
-            throw new RuntimeException(
+            throw new BusinessRuleException(
                     "Solo los pedidos con modalidad DESPACHO pueden marcarse como ENVIADO"
             );
         }
@@ -107,7 +109,7 @@ public class PreparacionPedidoService {
                 estadoAnterior != EstadoPedido.LISTO_PARA_RETIRO
                         && estadoAnterior != EstadoPedido.ENVIADO
         ) {
-            throw new RuntimeException(
+            throw new BusinessRuleException(
                     "Solo se puede finalizar un pedido listo para retiro o enviado"
             );
         }
@@ -127,7 +129,7 @@ public class PreparacionPedidoService {
     private Pedido obtenerPedido(Long pedidoId) {
         return pedidoRepository.findById(pedidoId)
                 .orElseThrow(() ->
-                        new RuntimeException("Pedido no encontrado: " + pedidoId)
+                        new ResourceNotFoundException("Pedido no encontrado: " + pedidoId)
                 );
     }
 }

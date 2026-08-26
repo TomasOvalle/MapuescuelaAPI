@@ -45,7 +45,7 @@ public class PedidoController {
     public PedidoResponse buscarPorCodigo(
             @PathVariable String codigo
     ) {
-        return pedidoService.bucarPorCodigo(codigo);
+        return pedidoService.buscarPorCodigo(codigo);
     }
 
     @GetMapping("/estado/{estado}")

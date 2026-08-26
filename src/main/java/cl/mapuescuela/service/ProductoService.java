@@ -5,6 +5,7 @@ import cl.mapuescuela.dto.producto.ProductoResponse;
 import cl.mapuescuela.entity.Producto;
 import cl.mapuescuela.entity.EstadoProducto;
 import cl.mapuescuela.exception.ProductoNotFoundException;
+import cl.mapuescuela.exception.ResourceNotFoundException;
 import cl.mapuescuela.repository.ProductoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +44,7 @@ public class ProductoService {
     ) {
         Producto producto = productoRepository.findById(id)
                 .orElseThrow(() ->
-                        new ProductoNotFoundException(id)
+                        new ResourceNotFoundException("Producto no encontrado " + id)
                 );
         producto.setNombre(request.nombre());
         producto.setDescripcion(request.descripcion());
@@ -60,7 +61,7 @@ public class ProductoService {
     public void eliminar(Long id) {
         Producto producto = productoRepository.findById(id)
                 .orElseThrow(() ->
-                        new ProductoNotFoundException(id)
+                        new ResourceNotFoundException("Producto no encontrado " + id)
                 );
         productoRepository.delete(producto);
     }
@@ -89,7 +90,7 @@ public class ProductoService {
     public ProductoResponse buscarPorId(Long id) {
         Producto producto = productoRepository.findById(id)
                 .orElseThrow(() ->
-                        new ProductoNotFoundException(id)
+                        new ResourceNotFoundException("Producto no encontrado: " + id)
                 );
         return toResponse(producto);
     }

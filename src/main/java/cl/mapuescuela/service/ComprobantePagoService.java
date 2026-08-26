@@ -5,6 +5,8 @@ import cl.mapuescuela.dto.comprobante.ComprobantePagoResponse;
 import cl.mapuescuela.entity.ComprobantePago;
 import cl.mapuescuela.entity.EstadoPedido;
 import cl.mapuescuela.entity.Pedido;
+import cl.mapuescuela.exception.BusinessRuleException;
+import cl.mapuescuela.exception.ResourceNotFoundException;
 import cl.mapuescuela.repository.ComprobantePagoRepository;
 import cl.mapuescuela.repository.PedidoRepository;
 import org.springframework.stereotype.Service;
@@ -31,17 +33,17 @@ public class ComprobantePagoService {
     ) {
         Pedido pedido = pedidoRepository.findById(pedidoId)
                 .orElseThrow(() ->
-                        new RuntimeException("Pedido no encontrado: " + pedidoId)
+                        new ResourceNotFoundException("Pedido no encontrado: " + pedidoId)
                 );
 
         if (pedido.getEstado() != EstadoPedido.PENDIENTE_PAGO) {
-            throw new RuntimeException(
+            throw new BusinessRuleException(
                     "Solo se puede adjuntar comprobante a un pedido pendiente de pago"
             );
         }
 
         if (comprobantePagoRepository.existsByPedidoId(pedidoId)) {
-            throw new RuntimeException(
+            throw new BusinessRuleException(
                     "El pedido ya tiene un comprobante asociado"
             );
         }
@@ -65,7 +67,7 @@ public class ComprobantePagoService {
         ComprobantePago comprobante = comprobantePagoRepository
                 .findByPedidoId(pedidoId)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "Comprobante no encontrado para el pedido: " + pedidoId
                         )
                 );
@@ -78,7 +80,7 @@ public class ComprobantePagoService {
         ComprobantePago comprobante = comprobantePagoRepository
                 .findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException("Comprobante no encontrado: " + id)
+                        new ResourceNotFoundException("Comprobante no encontrado: " + id)
                 );
         return toResponse(comprobante);
     }

@@ -5,6 +5,8 @@ import cl.mapuescuela.dto.pedido.DetallePedidoResponse;
 import cl.mapuescuela.dto.pedido.PedidoRequest;
 import cl.mapuescuela.dto.pedido.PedidoResponse;
 import cl.mapuescuela.entity.*;
+import cl.mapuescuela.exception.BusinessRuleException;
+import cl.mapuescuela.exception.ResourceNotFoundException;
 import cl.mapuescuela.repository.ProductoRepository;
 import cl.mapuescuela.repository.PedidoRepository;
 
@@ -42,21 +44,21 @@ public class PedidoService {
             Producto producto = productoRepository
                     .findById(detalleRequest.productoId())
                     .orElseThrow(() ->
-                            new RuntimeException(
+                            new ResourceNotFoundException(
                                     "Producto no encontrado: "
                                             + detalleRequest.productoId()
                             )
                     );
 
             if (producto.getEstado() != EstadoProducto.ACTIVO) {
-                throw new RuntimeException(
+                throw new BusinessRuleException(
                         "El producto no está activo: "
                                 + producto.getId()
                 );
             }
 
             if (producto.getStock() < detalleRequest.cantidad()) {
-                throw new RuntimeException(
+                throw new BusinessRuleException(
                         "Stock insuficiente para el producto: "
                                 + producto.getId()
                 );
@@ -83,7 +85,7 @@ public class PedidoService {
 
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "Pedido no encontrado: " + id
                         )
                 );
@@ -101,11 +103,11 @@ public class PedidoService {
     }
 
     @Transactional(readOnly = true)
-    public PedidoResponse bucarPorCodigo(String codigo) {
+    public PedidoResponse buscarPorCodigo(String codigo) {
         Pedido pedido = pedidoRepository
                 .findByCodigo(codigo)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "Pedido no encontrado: " + codigo
                         )
                 );
@@ -147,14 +149,14 @@ public class PedidoService {
             Producto producto = productoRepository
                     .findById(detalleRequest.productoId())
                     .orElseThrow(() ->
-                            new RuntimeException(
+                            new ResourceNotFoundException(
                                     "Producto no encontrado: "
                                             + detalleRequest.productoId()
                             )
                     );
 
             if (producto.getStock() < detalleRequest.cantidad()) {
-                throw new RuntimeException(
+                throw new BusinessRuleException(
                         "Stock insuficiente para el producto: "
                                 + producto.getId()
                 );
@@ -178,7 +180,7 @@ public class PedidoService {
 
         return pedidoRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException(
+                        new ResourceNotFoundException(
                                 "Pedido no encontrado: " + id
                         )
                 );
@@ -188,7 +190,7 @@ public class PedidoService {
 
         if (pedido.getEstado() != EstadoPedido.PENDIENTE_PAGO) {
 
-            throw new RuntimeException(
+            throw new BusinessRuleException(
                     "El pedido no puede modificarse porque se encuentra en estado "
                             + pedido.getEstado()
             );

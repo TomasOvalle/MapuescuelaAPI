@@ -39,7 +39,7 @@ public class Despacho {
     @Column(nullable = false)
     private LocalDate fechaEnvio;
 
-    protected Despacho() {
+    public Despacho() {
     }
 
     public Long getId() { return id; }

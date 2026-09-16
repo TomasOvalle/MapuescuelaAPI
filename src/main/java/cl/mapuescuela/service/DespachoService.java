@@ -6,6 +6,7 @@ import cl.mapuescuela.entity.Despacho;
 import cl.mapuescuela.entity.EstadoPedido;
 import cl.mapuescuela.entity.ModalidadEntrega;
 import cl.mapuescuela.entity.Pedido;
+import cl.mapuescuela.entity.TipoDespacho;
 import cl.mapuescuela.exception.BusinessRuleException;
 import cl.mapuescuela.exception.ResourceNotFoundException;
 import cl.mapuescuela.repository.DespachoRepository;
@@ -39,6 +40,8 @@ public class DespachoService {
                 );
 
         validarPedidoParaDespacho(pedido);
+
+        validarDatosDespacho(request);
 
         if (despachoRepository.existsByPedidoId(pedido.getId())) {
             throw new BusinessRuleException(
@@ -112,6 +115,8 @@ public class DespachoService {
             );
         }
 
+        validarDatosDespacho(request);
+
         despacho.setTipo(request.tipo());
         despacho.setEmpresaTransporte(request.empresaTransporte());
         despacho.setNumeroSeguimiento(request.numeroSeguimiento());
@@ -132,6 +137,28 @@ public class DespachoService {
             throw new BusinessRuleException(
                     "Solo se puede crear un despacho para pedidos en estado EN_PREPARACION"
             );
+        }
+    }
+
+    private void validarDatosDespacho(DespachoRequest request) {
+
+        if (request.tipo() == TipoDespacho.COURIER) {
+
+            if (request.empresaTransporte() == null
+                    || request.empresaTransporte().isBlank()) {
+
+                throw new BusinessRuleException(
+                        "La empresa de transporte es obligatoria para despachos tipo COURIER"
+                );
+            }
+
+            if (request.numeroSeguimiento() == null
+                    || request.numeroSeguimiento().isBlank()) {
+
+                throw new BusinessRuleException(
+                        "El número de seguimiento es obligatorio para despachos tipo COURIER"
+                );
+            }
         }
     }
 

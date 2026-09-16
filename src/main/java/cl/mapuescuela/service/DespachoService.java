@@ -53,9 +53,9 @@ public class DespachoService {
 
         despacho.setPedido(pedido);
         despacho.setTipo(request.tipo());
-        despacho.setEmpresaTransporte(request.empresaTransporte());
-        despacho.setNumeroSeguimiento(request.numeroSeguimiento());
         despacho.setFechaEnvio(request.fechaEnvio());
+
+        aplicarDatosTransporte(despacho, request);
 
         pedido.setEstado(EstadoPedido.ENVIADO);
 
@@ -117,10 +117,11 @@ public class DespachoService {
 
         validarDatosDespacho(request);
 
+
         despacho.setTipo(request.tipo());
-        despacho.setEmpresaTransporte(request.empresaTransporte());
-        despacho.setNumeroSeguimiento(request.numeroSeguimiento());
         despacho.setFechaEnvio(request.fechaEnvio());
+
+        aplicarDatosTransporte(despacho, request);
 
         return toResponse(despacho);
     }
@@ -159,6 +160,20 @@ public class DespachoService {
                         "El número de seguimiento es obligatorio para despachos tipo COURIER"
                 );
             }
+        }
+    }
+
+    private void aplicarDatosTransporte(
+            Despacho despacho,
+            DespachoRequest request
+    ) {
+
+        if (request.tipo() == TipoDespacho.VOLUNTARIO) {
+            despacho.setEmpresaTransporte(null);
+            despacho.setNumeroSeguimiento(null);
+        } else {
+            despacho.setEmpresaTransporte(request.empresaTransporte());
+            despacho.setNumeroSeguimiento(request.numeroSeguimiento());
         }
     }
 

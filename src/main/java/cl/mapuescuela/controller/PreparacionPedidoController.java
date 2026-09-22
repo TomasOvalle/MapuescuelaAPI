@@ -1,45 +1,40 @@
 package cl.mapuescuela.controller;
 
-import cl.mapuescuela.dto.pedido.CambioEstadoPedidoResponse;
-import cl.mapuescuela.service.PreparacionPedidoService;
+import cl.mapuescuela.service.PreparacionFlujoService;
+import cl.mapuescuela.service.EntregaFlujoService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/pedidos/{pedidoId}")
 public class PreparacionPedidoController {
-    private final PreparacionPedidoService preparacionPedidoService;
+
+    private final PreparacionFlujoService preparacionFlujoService;
+    private final EntregaFlujoService entregaFlujoService;
 
     public PreparacionPedidoController(
-            PreparacionPedidoService preparacionPedidoService
+            PreparacionFlujoService preparacionFlujoService,
+            EntregaFlujoService entregaFlujoService
     ) {
-        this.preparacionPedidoService = preparacionPedidoService;
+        this.preparacionFlujoService = preparacionFlujoService;
+        this.entregaFlujoService = entregaFlujoService;
     }
 
-    @PostMapping("/preparacion/iniciar")
-    public CambioEstadoPedidoResponse iniciarPreparacion(
+    @PostMapping("/preparacion/completar")
+    public ResponseEntity<Void> completarPreparacion(
             @PathVariable Long pedidoId
     ) {
-        return preparacionPedidoService.iniciarPreparacion(pedidoId);
+        preparacionFlujoService.completarPreparacion(pedidoId);
+
+        return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/entrega/listo-retiro")
-    public CambioEstadoPedidoResponse marcarListoParaRetiro(
+    @PostMapping("/retiro/confirmar")
+    public ResponseEntity<Void> confirmarRetiro(
             @PathVariable Long pedidoId
     ) {
-        return preparacionPedidoService.marcarListoParaRetiro(pedidoId);
-    }
+        entregaFlujoService.registrarRetiro(pedidoId);
 
-    @PostMapping("/entrega/enviar")
-    public CambioEstadoPedidoResponse marcarEnviado(
-            @PathVariable Long pedidoId
-    ) {
-        return preparacionPedidoService.marcarEnviado(pedidoId);
-    }
-
-    @PostMapping("/finalizar")
-    public CambioEstadoPedidoResponse finalizarPedido(
-            @PathVariable Long pedidoId
-    ) {
-        return preparacionPedidoService.finalizarPedido(pedidoId);
+        return ResponseEntity.noContent().build();
     }
 }

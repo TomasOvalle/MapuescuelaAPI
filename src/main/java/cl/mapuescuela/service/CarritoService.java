@@ -14,6 +14,7 @@ import cl.mapuescuela.entity.ItemCarrito;
 import cl.mapuescuela.entity.Producto;
 import cl.mapuescuela.exception.BusinessRuleException;
 import cl.mapuescuela.exception.ResourceNotFoundException;
+import cl.mapuescuela.process.ProcesoVentaService;
 import cl.mapuescuela.repository.CarritoRepository;
 import cl.mapuescuela.repository.ProductoRepository;
 import org.springframework.stereotype.Service;
@@ -27,15 +28,18 @@ public class CarritoService {
     private final CarritoRepository carritoRepository;
     private final ProductoRepository productoRepository;
     private final PedidoService pedidoService;
+    private final ProcesoVentaService procesoVentaService;
 
     public CarritoService(
             CarritoRepository carritoRepository,
             ProductoRepository productoRepository,
-            PedidoService pedidoService
+            PedidoService pedidoService,
+            ProcesoVentaService procesoVentaService
     ) {
         this.carritoRepository = carritoRepository;
         this.productoRepository = productoRepository;
         this.pedidoService = pedidoService;
+        this.procesoVentaService = procesoVentaService;
     }
 
     public CarritoResponse crearCarrito() {
@@ -201,9 +205,24 @@ public class CarritoService {
                 detalles
         );
 
-        PedidoResponse pedidoResponse = pedidoService.crear(pedidoRequest);
+        PedidoResponse pedidoResponse =
+                pedidoService.crear(pedidoRequest);
 
-        carrito.setEstado(EstadoCarrito.CONVERTIDO_EN_PEDIDO);
+        String processInstanceId =
+                procesoVentaService.iniciarProceso(
+                        pedidoResponse.id(),
+                        pedidoResponse.codigo(),
+                        pedidoResponse.modalidadEntrega()
+                );
+
+        pedidoService.asociarProcessInstanceId(
+                pedidoResponse.id(),
+                processInstanceId
+        );
+
+        carrito.setEstado(
+                EstadoCarrito.CONVERTIDO_EN_PEDIDO
+        );
 
         return pedidoResponse;
     }

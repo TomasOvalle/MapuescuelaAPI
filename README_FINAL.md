@@ -21,25 +21,45 @@ El backend implementa servicios REST para cubrir el flujo principal del MVP: cat
 
 ---
 
-## Arquitectura
+## Arquitectura de la API REST
 
-La aplicación utiliza una arquitectura por capas:
+La parte backend de MapuEscuela utiliza una arquitectura por capas y un motor BPMN embebido. El objetivo es separar la exposición HTTP, la lógica de negocio, la persistencia y la orquestación del proceso de venta.
 
-```text
-Frontend
-   ↓
-Controller
-   ↓
-Service
-   ↓
-Repository
-   ↓
-JPA / Hibernate
-   ↓
-PostgreSQL
+```mermaid
+flowchart LR
+    F[Frontend / Cliente REST] -->|HTTP / JSON| C[Controllers REST]
+
+    subgraph API[Spring Boot API]
+        C --> S[Services de negocio]
+        C --> CF[Servicios de coordinación de flujo]
+
+        CF --> FL[Flowable Process Engine]
+        FL --> BPMN[Proceso BPMN]
+        BPMN --> D[Java Delegates]
+        D --> S
+
+        S --> R[Repositories]
+        R --> J[JPA / Hibernate]
+    end
+
+    J --> DB[(PostgreSQL)]
+    FL --> DB
+
+    DB --> N[Tablas de negocio]
+    DB --> A[Tablas Flowable ACT_*]
 ```
 
-Los controladores exponen los endpoints REST, los servicios contienen la lógica de negocio, los repositorios administran el acceso a datos y las entidades representan el modelo persistente.
+### Responsabilidad de los componentes
+
+- **Controllers REST:** reciben solicitudes HTTP y exponen la API.
+- **Services:** implementan las reglas y operaciones de negocio.
+- **Servicios de coordinación de flujo:** completan tareas humanas de Flowable desde acciones de la API.
+- **Flowable:** ejecuta el proceso BPMN de venta, incluidos User Tasks, Service Tasks, gateways y temporizadores.
+- **Java Delegates:** conectan los Service Tasks del BPMN con los servicios Spring.
+- **Repositories + JPA/Hibernate:** administran la persistencia del dominio.
+- **PostgreSQL:** almacena tanto los datos de negocio como las tablas internas de Flowable.
+
+La arquitectura completa de MapuEscuela puede incluir otros componentes desarrollados por integrantes del equipo. Este diagrama representa exclusivamente la API REST y la integración Spring Boot + Flowable + PostgreSQL implementada en este módulo.
 
 ---
 
@@ -47,25 +67,71 @@ Los controladores exponen los endpoints REST, los servicios contienen la lógica
 
 ## URL base
 
-Durante el desarrollo local, el backend se ejecuta en:
+Durante el desarrollo local, el backend se ejecuta por defecto en:
 
 ```text
 http://localhost:8080
 ```
 
-La URL base de la API es:
+La URL base local de la API es:
 
 ```text
 http://localhost:8080/api
 ```
 
-Ejemplos:
+`localhost` es solamente el valor de desarrollo. La conexión a PostgreSQL, el puerto HTTP y el plazo del comprobante pueden configurarse mediante variables de entorno sin modificar el código fuente.
+
+Variables soportadas:
+
+| Variable | Valor por defecto | Descripción |
+|---|---|---|
+| `DB_URL` | `jdbc:postgresql://localhost:5432/mapuescuela` | URL JDBC de PostgreSQL |
+| `DB_USERNAME` | `mapuescuela` | Usuario de PostgreSQL |
+| `DB_PASSWORD` | `mapuescuela_dev` | Contraseña de desarrollo |
+| `SERVER_PORT` | `8080` | Puerto HTTP de la API |
+| `JPA_DDL_AUTO` | `update` | Estrategia de Hibernate |
+| `FLOWABLE_DATABASE_SCHEMA_UPDATE` | `true` | Actualización del esquema Flowable |
+| `PLAZO_COMPROBANTE` | `PT24H` | Tiempo máximo para adjuntar comprobante |
+
+Ejemplos locales:
 
 ```text
 http://localhost:8080/api/productos
 http://localhost:8080/api/carritos
 http://localhost:8080/api/pedidos
 http://localhost:8080/api/despachos
+```
+
+## Puesta en marcha
+
+1. Iniciar PostgreSQL:
+
+```bash
+docker compose up -d
+```
+
+2. Compilar la aplicación:
+
+```bash
+mvn clean package
+```
+
+3. Ejecutar con Maven:
+
+```bash
+mvn spring-boot:run
+```
+
+o ejecutar el JAR generado:
+
+```bash
+java -jar target/mapuescuela-0.0.1-SNAPSHOT.jar
+```
+
+El proceso BPMN ejecutable se despliega automáticamente desde:
+
+```text
+src/main/resources/processes/procesoVentaMapuescuela.bpmn20.xml
 ```
 
 ---
@@ -503,7 +569,7 @@ PENDIENTE
 
 # Revisión del pago
 
-Permite aprobar o rechazar el comprobante.
+La aprobación y el rechazo se coordinan mediante Flowable. El controller entrega la decisión al proceso y el gateway BPMN decide la ruta.
 
 ## Aprobar pago
 
@@ -511,34 +577,39 @@ Permite aprobar o rechazar el comprobante.
 POST /api/pedidos/{pedidoId}/pago/aprobar
 ```
 
-### Body
-
-```json
-{
-  "observacion": "Comprobante revisado y aprobado correctamente"
-}
-```
-
-`observacion` es opcional y permite hasta 1000 caracteres.
+No requiere body.
 
 ### Respuesta esperada
 
 ```http
-200 OK
+204 No Content
 ```
 
-```json
-{
-  "pedidoId": 5,
-  "codigoPedido": "PED-A1B2C3D4",
-  "estadoPedido": "PAGO_APROBADO",
-  "comprobanteId": 1,
-  "decisionPago": "APROBADO",
-  "observacion": "Comprobante revisado y aprobado correctamente"
-}
+Flowable registra:
+
+```text
+pagoAprobado = true
 ```
 
-También se descuenta el stock correspondiente a los productos del pedido.
+y ejecuta la lógica automática que:
+
+```text
+PAGO_EN_REVISION
+      ↓
+Aprobar comprobante
+      ↓
+Descontar stock
+      ↓
+PAGO_APROBADO
+      ↓
+Iniciar preparación
+      ↓
+EN_PREPARACION
+      ↓
+Task_PrepararPedido
+```
+
+Si el stock de un producto llega a `0`, el producto queda en estado `AGOTADO`.
 
 ---
 
@@ -548,67 +619,61 @@ También se descuenta el stock correspondiente a los productos del pedido.
 POST /api/pedidos/{pedidoId}/pago/rechazar
 ```
 
-### Body
-
-```json
-{
-  "observacion": "El monto transferido no corresponde al total del pedido"
-}
-```
+No requiere body.
 
 ### Respuesta esperada
 
 ```http
-200 OK
+204 No Content
 ```
 
-```json
-{
-  "pedidoId": 5,
-  "codigoPedido": "PED-A1B2C3D4",
-  "estadoPedido": "PAGO_RECHAZADO",
-  "comprobanteId": 1,
-  "decisionPago": "RECHAZADO",
-  "observacion": "El monto transferido no corresponde al total del pedido"
-}
+Flowable registra:
+
+```text
+pagoAprobado = false
 ```
 
-Al rechazar el pago no se descuenta stock.
+El comprobante queda `RECHAZADO`, el pedido queda en `PAGO_RECHAZADO` y la instancia termina.
+
+Al rechazar un pago **no se descuenta stock**.
 
 ---
 
 # Preparación del pedido
 
-## Iniciar preparación
+La preparación se inicia automáticamente desde Flowable después de aprobar el pago.
+
+```text
+PAGO_APROBADO
+      ↓
+IniciarPreparacionDelegate
+      ↓
+EN_PREPARACION
+      ↓
+Task_PrepararPedido
+```
+
+Cuando el voluntario termina de preparar el pedido se completa la tarea humana mediante:
 
 ```http
-POST /api/pedidos/{pedidoId}/preparacion/iniciar
+POST /api/pedidos/{pedidoId}/preparacion/completar
 ```
 
 No requiere body.
 
-Solo puede ejecutarse cuando el pedido se encuentra en:
-
-```text
-PAGO_APROBADO
-```
-
 ### Respuesta esperada
 
 ```http
-200 OK
+204 No Content
 ```
 
-```json
-{
-  "pedidoId": 5,
-  "codigoPedido": "PED-A1B2C3D4",
-  "estadoAnterior": "PAGO_APROBADO",
-  "estadoActual": "EN_PREPARACION",
-  "modalidadEntrega": "DESPACHO",
-  "mensaje": "Pedido en preparación"
-}
+Flowable evalúa la variable:
+
+```text
+modalidadEntrega
 ```
+
+y continúa automáticamente por `RETIRO` o `DESPACHO`.
 
 ---
 
@@ -620,52 +685,58 @@ Para pedidos con:
 modalidadEntrega = RETIRO
 ```
 
-se utiliza:
-
-```http
-POST /api/pedidos/{pedidoId}/entrega/listo-retiro
-```
-
-No requiere body.
-
-### Transición
+al completar `Task_PrepararPedido`, Flowable ejecuta automáticamente el delegate que cambia el estado:
 
 ```text
 EN_PREPARACION
       ↓
 LISTO_PARA_RETIRO
+      ↓
+Task_RegistrarRetiro
 ```
+
+Cuando el cliente retira el pedido se utiliza:
+
+```http
+POST /api/pedidos/{pedidoId}/retiro/confirmar
+```
+
+No requiere body.
 
 ### Respuesta esperada
 
 ```http
-200 OK
+204 No Content
 ```
 
-```json
-{
-  "pedidoId": 5,
-  "codigoPedido": "PED-A1B2C3D4",
-  "estadoAnterior": "EN_PREPARACION",
-  "estadoActual": "LISTO_PARA_RETIRO",
-  "modalidadEntrega": "RETIRO",
-  "mensaje": "Pedido listo para retiro"
-}
-```
+Al completar `Task_RegistrarRetiro`, Flowable ejecuta `FinalizarPedidoDelegate`, cambia el pedido a `FINALIZADO` y termina la instancia.
 
 ---
 
 # Despachos
 
-Para pedidos con modalidad `DESPACHO` se registran además los datos logísticos.
+Para pedidos con modalidad:
+
+```text
+DESPACHO
+```
+
+Flowable dirige el proceso desde `Task_PrepararPedido` hacia:
+
+```text
+Task_RegistrarDespacho
+```
+
+## Endpoints
 
 | Método | Ruta | Descripción |
 |---|---|---|
 | GET | `/api/despachos` | Listar despachos |
-| GET | `/api/despachos/{id}` | Consultar despacho |
-| GET | `/api/despachos/pedido/{pedidoId}` | Consultar por pedido |
+| GET | `/api/despachos/{id}` | Consultar despacho por ID |
+| GET | `/api/despachos/pedido/{pedidoId}` | Consultar despacho asociado a un pedido |
 | POST | `/api/despachos` | Registrar despacho |
 | PUT | `/api/despachos/{id}` | Actualizar despacho |
+| POST | `/api/despachos/pedidos/{pedidoId}/confirmar-entrega` | Confirmar entrega del pedido |
 
 ## Registrar despacho
 
@@ -684,11 +755,11 @@ estado = EN_PREPARACION
 
 ```json
 {
-  "pedidoId": 5,
+  "pedidoId": 10,
   "tipo": "COURIER",
-  "empresaTransporte": "Chilexpress",
-  "numeroSeguimiento": "CHX-123456789",
-  "fechaEnvio": "2026-09-16"
+  "empresaTransporte": "Chileexpress",
+  "numeroSeguimiento": "CHX-12345678",
+  "fechaEnvio": "2026-09-21"
 }
 ```
 
@@ -709,11 +780,11 @@ numeroSeguimiento
 
 ```json
 {
-  "pedidoId": 5,
+  "pedidoId": 10,
   "tipo": "VOLUNTARIO",
   "empresaTransporte": null,
   "numeroSeguimiento": null,
-  "fechaEnvio": "2026-09-16"
+  "fechaEnvio": "2026-09-21"
 }
 ```
 
@@ -730,66 +801,91 @@ VOLUNTARIO
 201 Created
 ```
 
+Ejemplo:
+
 ```json
 {
-  "id": 1,
-  "pedidoId": 5,
-  "codigoPedido": "PED-A1B2C3D4",
+  "id": 3,
+  "pedidoId": 10,
+  "codigoPedido": "PED-7219DFA1",
   "tipo": "COURIER",
-  "empresaTransporte": "Chilexpress",
-  "numeroSeguimiento": "CHX-123456789",
-  "fechaEnvio": "2026-09-16"
+  "empresaTransporte": "Chileexpress",
+  "numeroSeguimiento": "CHX-12345678",
+  "fechaEnvio": "2026-09-21"
 }
 ```
 
-Al registrar el despacho:
+Cuando el despacho se registra correctamente:
 
 ```text
-EN_PREPARACION
-      ↓
-ENVIADO
+Task_RegistrarDespacho
+        ↓
+Despacho persistido
+        ↓
+Pedido ENVIADO
+        ↓
+Task_ConfirmarEntrega
 ```
 
-> Para el flujo actual del frontend se recomienda utilizar `POST /api/despachos` para los pedidos con modalidad `DESPACHO`, ya que además de actualizar el estado permite persistir empresa, seguimiento, tipo y fecha de envío.
+## Confirmar entrega
 
----
-
-# Finalizar pedido
+Cuando se confirma que el pedido fue entregado:
 
 ```http
-POST /api/pedidos/{pedidoId}/finalizar
+POST /api/despachos/pedidos/{pedidoId}/confirmar-entrega
 ```
 
 No requiere body.
 
-Se permite desde:
-
-```text
-LISTO_PARA_RETIRO
-```
-
-o:
-
-```text
-ENVIADO
-```
-
 ### Respuesta esperada
 
 ```http
-200 OK
+204 No Content
 ```
 
-```json
-{
-  "pedidoId": 5,
-  "codigoPedido": "PED-A1B2C3D4",
-  "estadoAnterior": "ENVIADO",
-  "estadoActual": "FINALIZADO",
-  "modalidadEntrega": "DESPACHO",
-  "mensaje": "Pedido finalizado"
-}
+El endpoint ejecuta:
+
+```text
+EntregaFlujoService.confirmarEntrega()
+        ↓
+ProcesoVentaService
+        ↓
+completa Task_ConfirmarEntrega
+        ↓
+FinalizarPedidoDelegate
+        ↓
+Pedido FINALIZADO
+        ↓
+End Event
 ```
+
+Con esto, la rama `DESPACHO` del proceso queda finalizada.
+
+---
+
+# Finalización del pedido
+
+En el flujo BPMN normal, la finalización se ejecuta desde `FinalizarPedidoDelegate` después de completar la última tarea humana correspondiente:
+
+```text
+RETIRO:
+Task_RegistrarRetiro
+      ↓
+FinalizarPedidoDelegate
+      ↓
+FINALIZADO
+
+DESPACHO:
+Task_ConfirmarEntrega
+      ↓
+FinalizarPedidoDelegate
+      ↓
+FINALIZADO
+```
+
+La instancia Flowable termina y deja de aparecer en `ACT_RU_TASK` y `ACT_RU_EXECUTION`; su información permanece disponible en las tablas históricas `ACT_HI_*`.
+
+> Si el proyecto conserva endpoints directos de transición por compatibilidad con el frontend, estos deben considerarse operaciones heredadas. El flujo BPMN probado para la entrega utiliza la orquestación descrita anteriormente.
 
 ---
 
@@ -822,31 +918,54 @@ Checkout
         ↓
 Pedido PENDIENTE_PAGO
         ↓
+Task_AdjuntarComprobante
+   ├────────── vence plazo ──────────→ CANCELADO → Fin
+   ↓
 Registrar comprobante
         ↓
 PAGO_EN_REVISION
         ↓
-   ┌────┴─────┐
-   ↓          ↓
-APROBADO   RECHAZADO
-   ↓
-PAGO_APROBADO
-   ↓
-Descuento de stock
-   ↓
+Task_RevisarComprobante
+        ↓
+    Gateway pago
+      ┌────┴────┐
+      ↓         ↓
+ APROBADO    RECHAZADO
+      ↓         ↓
+Descontar     PAGO_RECHAZADO
+ stock            ↓
+      ↓           Fin
 EN_PREPARACION
-   ↓
- ┌──────────────┴──────────────┐
- ↓                             ↓
-RETIRO                      DESPACHO
- ↓                             ↓
-LISTO_PARA_RETIRO       Registrar despacho
-                               ↓
-                            ENVIADO
- └──────────────┬──────────────┘
-                ↓
-           FINALIZADO
+      ↓
+Task_PrepararPedido
+      ↓
+Gateway modalidadEntrega
+   ┌────────────┴────────────┐
+   ↓                         ↓
+RETIRO                    DESPACHO
+   ↓                         ↓
+LISTO_PARA_RETIRO      Task_RegistrarDespacho
+   ↓                         ↓
+Task_RegistrarRetiro       ENVIADO
+   ↓                         ↓
+   │                   Task_ConfirmarEntrega
+   └─────────────┬───────────┘
+                 ↓
+        FinalizarPedidoDelegate
+                 ↓
+            FINALIZADO
+                 ↓
+                Fin
 ```
+
+## Escenarios E2E comprobados
+
+| Escenario | Resultado |
+|---|---|
+| Pago aprobado + `DESPACHO` | Pedido `FINALIZADO` |
+| Pago aprobado + `RETIRO` | Pedido `FINALIZADO` |
+| Pago rechazado | `PAGO_RECHAZADO` y proceso terminado |
+| No adjuntar comprobante dentro del plazo | `CANCELADO` y proceso terminado |
 
 ---
 
@@ -1023,37 +1142,39 @@ con un formato similar a:
 | Agregar producto | POST | `/api/carritos/{id}/items` |
 | Modificar cantidad | PUT | `/api/carritos/{id}/items/{productoId}` |
 | Eliminar producto | DELETE | `/api/carritos/{id}/items/{productoId}` |
-| Realizar checkout y registrar datos cliente | POST | `/api/carritos/{id}/checkout` |
+| Realizar checkout e iniciar proceso Flowable | POST | `/api/carritos/{id}/checkout` |
 | Consultar pedido | GET | `/api/pedidos/{id}` |
 | Registrar comprobante | POST | `/api/pedidos/{id}/comprobante` |
 | Consultar comprobante | GET | `/api/pedidos/{id}/comprobante` |
 | Aprobar pago | POST | `/api/pedidos/{id}/pago/aprobar` |
 | Rechazar pago | POST | `/api/pedidos/{id}/pago/rechazar` |
-| Iniciar preparación | POST | `/api/pedidos/{id}/preparacion/iniciar` |
-| Marcar listo para retiro | POST | `/api/pedidos/{id}/entrega/listo-retiro` |
+| Completar preparación | POST | `/api/pedidos/{id}/preparacion/completar` |
+| Confirmar retiro | POST | `/api/pedidos/{id}/retiro/confirmar` |
 | Registrar despacho | POST | `/api/despachos` |
 | Listar despachos | GET | `/api/despachos` |
 | Consultar despacho por pedido | GET | `/api/despachos/pedido/{pedidoId}` |
 | Actualizar despacho | PUT | `/api/despachos/{id}` |
-| Finalizar pedido | POST | `/api/pedidos/{id}/finalizar` |
+| Confirmar entrega de despacho | POST | `/api/despachos/pedidos/{pedidoId}/confirmar-entrega` |
 
 ---
 
 # Base de datos
 
-PostgreSQL se ejecuta mediante Docker Compose.
+PostgreSQL se ejecuta mediante Docker Compose y almacena tanto la información del dominio como la información interna de Flowable.
 
-Para iniciar la base de datos:
+Para iniciar PostgreSQL:
 
 ```bash
 docker compose up -d
 ```
 
----
+Acceso manual:
 
-# Verificación en PostgreSQL
+```bash
+docker exec -it mapuescuela-postgres psql -U mapuescuela -d mapuescuela
+```
 
-Se puede verificar la persistencia ejecutando:
+## Verificación de datos del negocio
 
 ```sql
 SELECT * FROM productos;
@@ -1065,23 +1186,43 @@ SELECT * FROM comprobantes_pago;
 SELECT * FROM despachos;
 ```
 
-El flujo permite comprobar la persistencia e integración entre:
+## Verificación de Flowable
 
-```text
-Producto
-   ↓
-ItemCarrito
-   ↓
-Carrito
-   ↓
-Pedido
-   ↓
-DetallePedido
-   ↓
-ComprobantePago
-   ↓
-Despacho
+Definiciones desplegadas:
+
+```sql
+SELECT * FROM act_re_procdef;
 ```
+
+Tareas humanas activas:
+
+```sql
+SELECT id_, name_, task_def_key_, proc_inst_id_
+FROM act_ru_task;
+```
+
+Variables activas:
+
+```sql
+SELECT proc_inst_id_, name_, type_, text_, long_
+FROM act_ru_variable;
+```
+
+Timers activos:
+
+```sql
+SELECT process_instance_id_, element_id_, element_name_, duedate_
+FROM act_ru_timer_job;
+```
+
+Historial de procesos:
+
+```sql
+SELECT proc_inst_id_, business_key_, start_time_, end_time_
+FROM act_hi_procinst;
+```
+
+Cuando una instancia finaliza correctamente, deja de aparecer en `ACT_RU_TASK` y `ACT_RU_EXECUTION`, mientras que su historial permanece en `ACT_HI_*`.
 
 ---
 
@@ -1101,10 +1242,38 @@ Durante desarrollo deben configurarse explícitamente los orígenes correspondie
 
 # BPMN
 
-Los diagramas BPMN del proceso se encuentran en:
+El proceso ejecutable utilizado por Flowable se encuentra en:
 
 ```text
-docs/bpmn/
+src/main/resources/processes/procesoVentaMapuescuela.bpmn20.xml
 ```
 
-El proceso modela el flujo principal de venta de MapuEscuela y sirve como base para la integración con Flowable.
+Flowable se ejecuta embebido dentro de Spring Boot y utiliza PostgreSQL para persistir definiciones, instancias, tareas, variables, timers e historial.
+
+El proceso incluye:
+
+- User Tasks para comprobante, revisión, preparación, retiro y despacho.
+- Service Tasks implementadas mediante `JavaDelegate`.
+- Gateways exclusivos para aprobación del pago y modalidad de entrega.
+- Boundary Timer interruptivo para el plazo del comprobante.
+- Integración con los servicios Spring para actualizar el estado del dominio y el inventario.
+
+El plazo del comprobante se configura externamente mediante:
+
+```text
+PLAZO_COMPROBANTE
+```
+
+con valor final por defecto:
+
+```text
+PT24H
+```
+
+---
+
+# Alcance de esta documentación
+
+Este README documenta principalmente la **API REST** desarrollada con Spring Boot, Flowable y PostgreSQL.
+
+El diagrama presentado corresponde únicamente a este componente de la solución MapuEscuela. Para el diagrama de arquitectura general de la entrega final será necesario incorporar los módulos desarrollados por los demás integrantes del equipo y mostrar cómo se integran con esta API.

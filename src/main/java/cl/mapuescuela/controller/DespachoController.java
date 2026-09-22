@@ -3,8 +3,10 @@ package cl.mapuescuela.controller;
 import cl.mapuescuela.dto.despacho.DespachoRequest;
 import cl.mapuescuela.dto.despacho.DespachoResponse;
 import cl.mapuescuela.service.DespachoService;
+import cl.mapuescuela.service.EntregaFlujoService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -13,9 +15,11 @@ import java.util.List;
 @RequestMapping("/api/despachos")
 public class DespachoController {
     private final DespachoService despachoService;
+    private final EntregaFlujoService entregaFlujoService;
 
-    public DespachoController(DespachoService despachoService) {
+    public DespachoController(DespachoService despachoService, EntregaFlujoService entregaFlujoService) {
         this.despachoService = despachoService;
+        this.entregaFlujoService = entregaFlujoService;
     }
 
     @PostMapping
@@ -51,5 +55,14 @@ public class DespachoController {
             @Valid @RequestBody DespachoRequest request
     ) {
         return despachoService.actualizar(id, request);
+    }
+
+    @PostMapping("/pedidos/{pedidoId}/confirmar-entrega")
+    public ResponseEntity<Void> confirmarEntrega(
+            @PathVariable Long pedidoId
+    ) {
+        entregaFlujoService.confirmarEntrega(pedidoId);
+
+        return ResponseEntity.noContent().build();
     }
 }

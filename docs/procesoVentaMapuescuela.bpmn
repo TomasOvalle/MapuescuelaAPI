@@ -55,6 +55,7 @@
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
       </extensionElements>
     </userTask>
+    <!--
     <userTask id="Task_SeleccionarProductos" name="El cliente selecciona uno o más productos" flowable:candidateGroups="CLIENTES" flowable:formFieldValidation="false">
       <documentation>Representa la selección de uno o más productos disponibles. La aplicación valida el stock sin descontarlo todavía.</documentation>
       <extensionElements>
@@ -63,6 +64,8 @@
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
       </extensionElements>
     </userTask>
+    -->
+    <!--
     <serviceTask id="Task_CrearPedido" name="Crear pedido e informar datos de transferencia" flowable:class="cl.mapuescuela.process.CrearPedidoDelegate">
       <documentation>Crea o confirma el pedido, establece PENDIENTE_DE_PAGO y presenta los datos bancarios.</documentation>
       <extensionElements>
@@ -70,6 +73,8 @@
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
       </extensionElements>
     </serviceTask>
+    -->
+    <!--
     <userTask id="Task_SeleccionarEntrega" name="El cliente selecciona la  modalidad de entrega" flowable:candidateGroups="CLIENTES" flowable:formFieldValidation="false">
       <documentation>El cliente elige RETIRO o DESPACHO. El valor se guarda en la variable modalidadEntrega.</documentation>
       <extensionElements>
@@ -78,12 +83,14 @@
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
       </extensionElements>
     </userTask>
+    -->
     <serviceTask id="Task_RechazarPago" name="Cancelar el pedido e informar al cliente" flowable:class="cl.mapuescuela.process.RechazarPagoDelegate">
       <extensionElements>
         <design:stencilid><![CDATA[ServiceTask]]></design:stencilid>
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
       </extensionElements>
     </serviceTask>
+    <!--
     <userTask id="Task_ConfirmarCompra" name="El cliente confirma la compra e ingresar sus datos " flowable:candidateGroups="CLIENTES" flowable:formFieldValidation="false">
       <extensionElements>
         <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
@@ -91,6 +98,7 @@
         <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
       </extensionElements>
     </userTask>
+    -->
     <serviceTask id="Task_DescontarInventario" name="Se confirma la compra y se actualiza el inventario" flowable:class="cl.mapuescuela.process.AprobarPagoYDescontarStockDelegate">
       <documentation>La actualización debe ser atómica y validar nuevamente el stock disponible.</documentation>
       <extensionElements>

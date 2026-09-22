@@ -1,22 +1,28 @@
 spring:
   application:
     name: mapuescuela
+
   datasource:
-    url: jdbc:postgresql://localhost:5432/mapuescuela
-    username: mapuescuela
-    password: mapuescuela_dev
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/mapuescuela}
+    username: ${DB_USERNAME:mapuescuela}
+    password: ${DB_PASSWORD:mapuescuela_dev}
     driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${JPA_DDL_AUTO:update}
     open-in-view: false
     properties:
       hibernate:
         format_sql: true
 
 flowable:
-  database-schema-update: true
+  database-schema-update: ${FLOWABLE_DATABASE_SCHEMA_UPDATE:true}
   async-executor-activate: true
 
+mapuescuela:
+  proceso:
+    plazo-comprobante: ${PLAZO_COMPROBANTE:PT24H}
+
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}

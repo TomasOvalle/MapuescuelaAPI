@@ -68,6 +68,26 @@ public class PagoService {
         return toResponse(pedido, comprobante);
     }
 
+    public void aprobarPagoDesdeProceso(Long pedidoId) {
+
+        RevisionPagoRequest request =
+                new RevisionPagoRequest(
+                        "Pago aprobado mediante proceso Flowable"
+                );
+
+        aprobarPago(pedidoId, request);
+    }
+
+    public void rechazarPagoDesdeProceso(Long pedidoId) {
+
+        RevisionPagoRequest request =
+                new RevisionPagoRequest(
+                        "Pago rechazado mediante proceso Flowable"
+                );
+
+        rechazarPago(pedidoId, request);
+    }
+
     private Pedido obtenerPedido(Long pedidoId) {
         return pedidoRepository.findById(pedidoId)
                 .orElseThrow(() ->

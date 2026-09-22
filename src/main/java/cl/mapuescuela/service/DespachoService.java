@@ -11,6 +11,7 @@ import cl.mapuescuela.exception.BusinessRuleException;
 import cl.mapuescuela.exception.ResourceNotFoundException;
 import cl.mapuescuela.repository.DespachoRepository;
 import cl.mapuescuela.repository.PedidoRepository;
+import cl.mapuescuela.process.ProcesoVentaService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,13 +22,16 @@ import java.util.List;
 public class DespachoService {
     private final DespachoRepository despachoRepository;
     private final PedidoRepository pedidoRepository;
+    private final ProcesoVentaService procesoVentaService;
 
     public DespachoService(
             DespachoRepository despachoRepository,
-            PedidoRepository pedidoRepository
+            PedidoRepository pedidoRepository,
+            ProcesoVentaService procesoVentaService
     ) {
         this.despachoRepository = despachoRepository;
         this.pedidoRepository = pedidoRepository;
+        this.procesoVentaService = procesoVentaService;
     }
 
     public DespachoResponse crear(DespachoRequest request) {
@@ -48,6 +52,16 @@ public class DespachoService {
                     "El pedido ya tiene un despacho registrado"
             );
         }
+
+        if (pedido.getProcessInstanceId() == null) {
+            throw new BusinessRuleException(
+                    "El pedido no tiene una instancia Flowable asociada"
+            );
+        }
+
+        procesoVentaService.completarRegistroDespacho(
+                pedido.getProcessInstanceId()
+        );
 
         Despacho despacho = new Despacho();
 

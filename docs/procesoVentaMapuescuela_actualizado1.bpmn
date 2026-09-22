@@ -1,0 +1,481 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:flowable="http://flowable.org/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI" xmlns:design="http://flowable.org/design" typeLanguage="http://www.w3.org/2001/XMLSchema" expressionLanguage="http://www.w3.org/1999/XPath" targetNamespace="https://mapuescuela.cl/bpmn" exporter="Flowable Design" exporterVersion="2026.1.1" design:palette="flowable-work-process-palette">
+  <process id="procesoVentaMapuescuela" name="Venta de productos - Mapuescuela (TO-BE)" isExecutable="true">
+    <documentation>Proceso principal de venta del MVP, alineado con el backend Spring Boot. El proceso comienza cuando el checkout ya creó el pedido. Variables requeridas: pedidoId, modalidadEntrega y pagoAprobado. Los Service Tasks delegan la lógica de negocio a servicios Spring mediante Java Delegates; los datos de negocio permanecen persistidos en PostgreSQL.</documentation>
+    <extensionElements>
+      <flowable:candidates-type><![CDATA[all]]></flowable:candidates-type>
+      <design:stencilid><![CDATA[BPMNDiagram]]></design:stencilid>
+      <design:creationdate><![CDATA[2026-08-11T20:58:03.146Z]]></design:creationdate>
+      <design:modificationdate><![CDATA[2026-09-19T14:08:00-03:00]]></design:modificationdate>
+    </extensionElements>
+    <laneSet id="LaneSet_VentaTOBE">
+      <lane id="Lane_Cliente" name="Cliente">
+        <flowNodeRef>Task_AdjuntarComprobante</flowNodeRef>
+      </lane>
+      <lane id="Lane_Sistema" name="Sistema / Flowable">
+        <flowNodeRef>Event_PedidoGenerado</flowNodeRef>
+        <flowNodeRef>BoundaryEvent_Plazo24Horas</flowNodeRef>
+        <flowNodeRef>Task_CancelarPorVencimiento</flowNodeRef>
+        <flowNodeRef>EndEvent_Vencido</flowNodeRef>
+        <flowNodeRef>Gateway_PagoAprobado</flowNodeRef>
+        <flowNodeRef>Task_RechazarPago</flowNodeRef>
+        <flowNodeRef>EndEvent_PagoRechazado</flowNodeRef>
+        <flowNodeRef>Task_DescontarInventario</flowNodeRef>
+        <flowNodeRef>Task_IniciarPreparacion</flowNodeRef>
+        <flowNodeRef>Gateway_ModalidadEntrega</flowNodeRef>
+        <flowNodeRef>Task_MarcarListoRetiro</flowNodeRef>
+        <flowNodeRef>Gateway_UnirEntrega</flowNodeRef>
+        <flowNodeRef>Task_FinalizarPedido</flowNodeRef>
+        <flowNodeRef>EndEvent_Finalizado</flowNodeRef>
+      </lane>
+      <lane id="Lane_Voluntario" name="Voluntario / administrador">
+        <flowNodeRef>Task_RevisarComprobante</flowNodeRef>
+        <flowNodeRef>Task_PrepararPedido</flowNodeRef>
+        <flowNodeRef>Task_RegistrarRetiro</flowNodeRef>
+        <flowNodeRef>Task_RegistrarDespacho</flowNodeRef>
+        <flowNodeRef>Task_ConfirmarEntrega</flowNodeRef>
+      </lane>
+    </laneSet>
+    <startEvent id="Event_PedidoGenerado" name="Pedido generado por checkout" flowable:formFieldValidation="false">
+      <extensionElements>
+        <design:stencilid><![CDATA[StartNoneEvent]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+        <flowable:work-form-field-validation><![CDATA[false]]></flowable:work-form-field-validation>
+      </extensionElements>
+      <documentation>El proceso se inicia después de que CarritoService.checkout() creó y persistió el pedido en estado PENDIENTE_PAGO.</documentation>
+    </startEvent>
+    <userTask id="Task_AdjuntarComprobante" name="Adjuntar comprobante de transferencia" flowable:candidateGroups="CLIENTES" flowable:formFieldValidation="false">
+      <documentation>El frontend registra el comprobante asociado al pedido y completa esta tarea. El pedido pasa a PAGO_EN_REVISION.</documentation>
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </userTask>
+    <boundaryEvent id="BoundaryEvent_Plazo24Horas" name="24 horas sin adjuntar el comprobante" attachedToRef="Task_AdjuntarComprobante" cancelActivity="true">
+      <extensionElements>
+        <design:stencilid><![CDATA[IntermediateTimerEventBoundary]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+      <timerEventDefinition>
+        <timeDuration>PT24H</timeDuration>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <serviceTask id="Task_CancelarPorVencimiento" name="Cancelar pedido por vencimiento" flowable:delegateExpression="${cancelarPedidoDelegate}">
+      <documentation>Marca el pedido PENDIENTE_PAGO como CANCELADO cuando transcurren 24 horas sin comprobante. No descuenta stock.</documentation>
+      <extensionElements>
+        <design:stencilid><![CDATA[ServiceTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </serviceTask>
+    <endEvent id="EndEvent_Vencido" name="Pedido cancelado por vencimiento">
+      <extensionElements>
+        <design:stencilid><![CDATA[EndNoneEvent]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+    </endEvent>
+    <userTask id="Task_RevisarComprobante" name="Revisar comprobante de pago" flowable:candidateGroups="VOLUNTARIOS" flowable:formFieldValidation="false">
+      <documentation>El voluntario revisa el comprobante y completa la tarea informando la variable booleana pagoAprobado.</documentation>
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </userTask>
+    <exclusiveGateway id="Gateway_PagoAprobado" name="¿Pago aprobado?">
+      <extensionElements>
+        <design:stencilid><![CDATA[Exclusive_Databased_Gateway]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+    </exclusiveGateway>
+    <serviceTask id="Task_RechazarPago" name="Registrar pago rechazado" flowable:delegateExpression="${rechazarPagoDelegate}">
+      <documentation>Actualiza el comprobante a RECHAZADO y el pedido a PAGO_RECHAZADO.</documentation>
+      <extensionElements>
+        <design:stencilid><![CDATA[ServiceTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </serviceTask>
+    <endEvent id="EndEvent_PagoRechazado" name="Pago rechazado">
+      <extensionElements>
+        <design:stencilid><![CDATA[EndNoneEvent]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+    </endEvent>
+    <serviceTask id="Task_DescontarInventario" name="Aprobar pago y descontar inventario" flowable:delegateExpression="${aprobarPagoYDescontarStockDelegate}">
+      <documentation>Aprueba el comprobante, cambia el pedido a PAGO_APROBADO y descuenta el stock de forma transaccional.</documentation>
+      <extensionElements>
+        <design:stencilid><![CDATA[ServiceTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </serviceTask>
+    <serviceTask id="Task_IniciarPreparacion" name="Iniciar preparación del pedido" flowable:delegateExpression="${iniciarPreparacionDelegate}">
+      <documentation>Invoca PreparacionPedidoService para cambiar el pedido de PAGO_APROBADO a EN_PREPARACION.</documentation>
+      <extensionElements>
+        <design:stencilid><![CDATA[ServiceTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </serviceTask>
+    <userTask id="Task_PrepararPedido" name="Preparar pedido" flowable:candidateGroups="VOLUNTARIOS" flowable:formFieldValidation="false">
+      <documentation>Tarea humana que representa la preparación física del pedido por parte de un voluntario.</documentation>
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </userTask>
+    <exclusiveGateway id="Gateway_ModalidadEntrega" name="¿Modalidad de entrega?">
+      <extensionElements>
+        <design:stencilid><![CDATA[Exclusive_Databased_Gateway]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+    </exclusiveGateway>
+    <serviceTask id="Task_MarcarListoRetiro" name="Marcar pedido listo para retiro" flowable:delegateExpression="${marcarListoRetiroDelegate}">
+      <documentation>Para modalidad RETIRO, cambia el pedido desde EN_PREPARACION a LISTO_PARA_RETIRO.</documentation>
+      <extensionElements>
+        <design:stencilid><![CDATA[ServiceTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </serviceTask>
+    <userTask id="Task_RegistrarRetiro" name="Registrar retiro del pedido" flowable:candidateGroups="VOLUNTARIOS" flowable:formFieldValidation="false">
+      <documentation>El voluntario confirma que el cliente retiró el pedido. Al completar esta tarea, el proceso puede finalizar el pedido.</documentation>
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </userTask>
+    <userTask id="Task_RegistrarDespacho" name="Registrar despacho o envío" flowable:candidateGroups="VOLUNTARIOS" flowable:formFieldValidation="false">
+      <documentation>El voluntario registra tipo de despacho, empresa, seguimiento y fecha. El frontend utiliza DespachoService / POST /api/despachos, dejando el pedido ENVIADO, y luego completa esta tarea.</documentation>
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </userTask>
+    <userTask id="Task_ConfirmarEntrega" name="Confirmar entrega del despacho" flowable:candidateGroups="VOLUNTARIOS" flowable:formFieldValidation="false">
+      <documentation>Confirma que un pedido previamente ENVIADO fue entregado al cliente antes de finalizarlo.</documentation>
+      <extensionElements>
+        <flowable:task-candidates-type><![CDATA[all]]></flowable:task-candidates-type>
+        <design:stencilid><![CDATA[FormTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </userTask>
+    <exclusiveGateway id="Gateway_UnirEntrega" name="Entrega completada">
+      <extensionElements>
+        <design:stencilid><![CDATA[Exclusive_Databased_Gateway]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+    </exclusiveGateway>
+    <serviceTask id="Task_FinalizarPedido" name="Finalizar pedido" flowable:delegateExpression="${finalizarPedidoDelegate}">
+      <documentation>Invoca PreparacionPedidoService.finalizarPedido(pedidoId), pasando LISTO_PARA_RETIRO o ENVIADO a FINALIZADO.</documentation>
+      <extensionElements>
+        <design:stencilid><![CDATA[ServiceTask]]></design:stencilid>
+        <design:stencilsuperid><![CDATA[Task]]></design:stencilsuperid>
+      </extensionElements>
+    </serviceTask>
+    <endEvent id="EndEvent_Finalizado" name="Pedido finalizado">
+      <extensionElements>
+        <design:stencilid><![CDATA[EndNoneEvent]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+    </endEvent>
+    <sequenceFlow id="Flow_Inicio_Adjuntar" sourceRef="Event_PedidoGenerado" targetRef="Task_AdjuntarComprobante">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_Adjuntar_Revisar" sourceRef="Task_AdjuntarComprobante" targetRef="Task_RevisarComprobante">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_Plazo_Cancelar" sourceRef="BoundaryEvent_Plazo24Horas" targetRef="Task_CancelarPorVencimiento">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_Cancelar_FinVencido" sourceRef="Task_CancelarPorVencimiento" targetRef="EndEvent_Vencido">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_Revisar_GatewayPago" sourceRef="Task_RevisarComprobante" targetRef="Gateway_PagoAprobado">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_PagoNo_Rechazar" sourceRef="Gateway_PagoAprobado" targetRef="Task_RechazarPago" name="No">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${pagoAprobado == false}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_Rechazar_Fin" sourceRef="Task_RechazarPago" targetRef="EndEvent_PagoRechazado">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_PagoSi_AprobarStock" sourceRef="Gateway_PagoAprobado" targetRef="Task_DescontarInventario" name="Sí">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${pagoAprobado == true}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_AprobarStock_IniciarPreparacion" sourceRef="Task_DescontarInventario" targetRef="Task_IniciarPreparacion">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_IniciarPreparacion_Preparar" sourceRef="Task_IniciarPreparacion" targetRef="Task_PrepararPedido">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_Preparar_GatewayModalidad" sourceRef="Task_PrepararPedido" targetRef="Gateway_ModalidadEntrega">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_Retiro_MarcarListo" sourceRef="Gateway_ModalidadEntrega" targetRef="Task_MarcarListoRetiro" name="Retiro">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${modalidadEntrega == 'RETIRO'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_MarcarListo_RegistrarRetiro" sourceRef="Task_MarcarListoRetiro" targetRef="Task_RegistrarRetiro">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_RegistrarRetiro_Unir" sourceRef="Task_RegistrarRetiro" targetRef="Gateway_UnirEntrega">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_Despacho_Registrar" sourceRef="Gateway_ModalidadEntrega" targetRef="Task_RegistrarDespacho" name="Despacho">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+        <design:display_ref_in_diagram><![CDATA[true]]></design:display_ref_in_diagram>
+      </extensionElements>
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${modalidadEntrega == 'DESPACHO'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_RegistrarDespacho_ConfirmarEntrega" sourceRef="Task_RegistrarDespacho" targetRef="Task_ConfirmarEntrega">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_ConfirmarEntrega_Unir" sourceRef="Task_ConfirmarEntrega" targetRef="Gateway_UnirEntrega">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_Unir_Finalizar" sourceRef="Gateway_UnirEntrega" targetRef="Task_FinalizarPedido">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+    <sequenceFlow id="Flow_Finalizar_Fin" sourceRef="Task_FinalizarPedido" targetRef="EndEvent_Finalizado">
+      <extensionElements>
+        <design:stencilid><![CDATA[SequenceFlow]]></design:stencilid>
+      </extensionElements>
+    </sequenceFlow>
+  </process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_procesoVentaMapuescuela">
+    <bpmndi:BPMNPlane bpmnElement="procesoVentaMapuescuela" id="BPMNPlane_procesoVentaMapuescuela">
+      <bpmndi:BPMNShape bpmnElement="Lane_Cliente" id="BPMNShape_Lane_Cliente" isHorizontal="true">
+        <omgdc:Bounds x="0" y="0" width="2300" height="180"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Lane_Sistema" id="BPMNShape_Lane_Sistema" isHorizontal="true">
+        <omgdc:Bounds x="0" y="180" width="2300" height="260"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Lane_Voluntario" id="BPMNShape_Lane_Voluntario" isHorizontal="true">
+        <omgdc:Bounds x="0" y="440" width="2300" height="260"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Event_PedidoGenerado" id="BPMNShape_Event_PedidoGenerado">
+        <omgdc:Bounds x="80" y="285" width="30" height="30"/>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="35" y="320" width="130" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_AdjuntarComprobante" id="BPMNShape_Task_AdjuntarComprobante">
+        <omgdc:Bounds x="160" y="50" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="BoundaryEvent_Plazo24Horas" id="BPMNShape_BoundaryEvent_Plazo24Horas">
+        <omgdc:Bounds x="225" y="115" width="30" height="30"/>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="180" y="150" width="130" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_CancelarPorVencimiento" id="BPMNShape_Task_CancelarPorVencimiento">
+        <omgdc:Bounds x="360" y="200" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="EndEvent_Vencido" id="BPMNShape_EndEvent_Vencido">
+        <omgdc:Bounds x="570" y="225" width="30" height="30"/>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="525" y="260" width="130" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_RevisarComprobante" id="BPMNShape_Task_RevisarComprobante">
+        <omgdc:Bounds x="390" y="515" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Gateway_PagoAprobado" id="BPMNShape_Gateway_PagoAprobado">
+        <omgdc:Bounds x="610" y="290" width="40" height="40"/>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="580" y="265" width="120" height="18"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_RechazarPago" id="BPMNShape_Task_RechazarPago">
+        <omgdc:Bounds x="700" y="350" width="160" height="70"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="EndEvent_PagoRechazado" id="BPMNShape_EndEvent_PagoRechazado">
+        <omgdc:Bounds x="910" y="370" width="30" height="30"/>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="865" y="405" width="130" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_DescontarInventario" id="BPMNShape_Task_DescontarInventario">
+        <omgdc:Bounds x="700" y="215" width="170" height="75"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_IniciarPreparacion" id="BPMNShape_Task_IniciarPreparacion">
+        <omgdc:Bounds x="910" y="215" width="170" height="75"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_PrepararPedido" id="BPMNShape_Task_PrepararPedido">
+        <omgdc:Bounds x="1110" y="515" width="150" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Gateway_ModalidadEntrega" id="BPMNShape_Gateway_ModalidadEntrega">
+        <omgdc:Bounds x="1300" y="290" width="40" height="40"/>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="1270" y="265" width="120" height="18"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_MarcarListoRetiro" id="BPMNShape_Task_MarcarListoRetiro">
+        <omgdc:Bounds x="1420" y="205" width="165" height="75"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_RegistrarRetiro" id="BPMNShape_Task_RegistrarRetiro">
+        <omgdc:Bounds x="1620" y="470" width="155" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_RegistrarDespacho" id="BPMNShape_Task_RegistrarDespacho">
+        <omgdc:Bounds x="1420" y="575" width="165" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_ConfirmarEntrega" id="BPMNShape_Task_ConfirmarEntrega">
+        <omgdc:Bounds x="1620" y="575" width="155" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Gateway_UnirEntrega" id="BPMNShape_Gateway_UnirEntrega">
+        <omgdc:Bounds x="1835" y="290" width="40" height="40"/>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="1805" y="265" width="120" height="18"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="Task_FinalizarPedido" id="BPMNShape_Task_FinalizarPedido">
+        <omgdc:Bounds x="1940" y="215" width="155" height="75"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape bpmnElement="EndEvent_Finalizado" id="BPMNShape_EndEvent_Finalizado">
+        <omgdc:Bounds x="2150" y="290" width="30" height="30"/>
+        <bpmndi:BPMNLabel>
+          <omgdc:Bounds x="2105" y="325" width="130" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Inicio_Adjuntar" id="BPMNEdge_Flow_Inicio_Adjuntar">
+        <omgdi:waypoint x="110" y="300.0"/>
+        <omgdi:waypoint x="130" y="300"/>
+        <omgdi:waypoint x="130" y="90"/>
+        <omgdi:waypoint x="160" y="90.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Adjuntar_Revisar" id="BPMNEdge_Flow_Adjuntar_Revisar">
+        <omgdi:waypoint x="320" y="90.0"/>
+        <omgdi:waypoint x="350" y="90"/>
+        <omgdi:waypoint x="350" y="555"/>
+        <omgdi:waypoint x="390" y="555.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Plazo_Cancelar" id="BPMNEdge_Flow_Plazo_Cancelar">
+        <omgdi:waypoint x="240.0" y="145"/>
+        <omgdi:waypoint x="240" y="175"/>
+        <omgdi:waypoint x="440" y="175"/>
+        <omgdi:waypoint x="440.0" y="200"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Cancelar_FinVencido" id="BPMNEdge_Flow_Cancelar_FinVencido">
+        <omgdi:waypoint x="520" y="240.0"/>
+        <omgdi:waypoint x="570" y="240.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Revisar_GatewayPago" id="BPMNEdge_Flow_Revisar_GatewayPago">
+        <omgdi:waypoint x="550" y="555.0"/>
+        <omgdi:waypoint x="590" y="555"/>
+        <omgdi:waypoint x="590" y="310"/>
+        <omgdi:waypoint x="610" y="310.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_PagoNo_Rechazar" id="BPMNEdge_Flow_PagoNo_Rechazar">
+        <omgdi:waypoint x="630.0" y="330"/>
+        <omgdi:waypoint x="630" y="385"/>
+        <omgdi:waypoint x="700" y="385.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Rechazar_Fin" id="BPMNEdge_Flow_Rechazar_Fin">
+        <omgdi:waypoint x="860" y="385.0"/>
+        <omgdi:waypoint x="910" y="385.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_PagoSi_AprobarStock" id="BPMNEdge_Flow_PagoSi_AprobarStock">
+        <omgdi:waypoint x="650" y="310.0"/>
+        <omgdi:waypoint x="700" y="252.5"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_AprobarStock_IniciarPreparacion" id="BPMNEdge_Flow_AprobarStock_IniciarPreparacion">
+        <omgdi:waypoint x="870" y="252.5"/>
+        <omgdi:waypoint x="910" y="252.5"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_IniciarPreparacion_Preparar" id="BPMNEdge_Flow_IniciarPreparacion_Preparar">
+        <omgdi:waypoint x="1080" y="252.5"/>
+        <omgdi:waypoint x="1095" y="252"/>
+        <omgdi:waypoint x="1095" y="555"/>
+        <omgdi:waypoint x="1110" y="555.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Preparar_GatewayModalidad" id="BPMNEdge_Flow_Preparar_GatewayModalidad">
+        <omgdi:waypoint x="1260" y="555.0"/>
+        <omgdi:waypoint x="1280" y="555"/>
+        <omgdi:waypoint x="1280" y="310"/>
+        <omgdi:waypoint x="1300" y="310.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Retiro_MarcarListo" id="BPMNEdge_Flow_Retiro_MarcarListo">
+        <omgdi:waypoint x="1340" y="310.0"/>
+        <omgdi:waypoint x="1380" y="310"/>
+        <omgdi:waypoint x="1380" y="242"/>
+        <omgdi:waypoint x="1420" y="242.5"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_MarcarListo_RegistrarRetiro" id="BPMNEdge_Flow_MarcarListo_RegistrarRetiro">
+        <omgdi:waypoint x="1585" y="242.5"/>
+        <omgdi:waypoint x="1600" y="242"/>
+        <omgdi:waypoint x="1600" y="510"/>
+        <omgdi:waypoint x="1620" y="510.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_RegistrarRetiro_Unir" id="BPMNEdge_Flow_RegistrarRetiro_Unir">
+        <omgdi:waypoint x="1775" y="510.0"/>
+        <omgdi:waypoint x="1800" y="510"/>
+        <omgdi:waypoint x="1800" y="310"/>
+        <omgdi:waypoint x="1835" y="310.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Despacho_Registrar" id="BPMNEdge_Flow_Despacho_Registrar">
+        <omgdi:waypoint x="1320.0" y="330"/>
+        <omgdi:waypoint x="1320" y="615"/>
+        <omgdi:waypoint x="1420" y="615.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_RegistrarDespacho_ConfirmarEntrega" id="BPMNEdge_Flow_RegistrarDespacho_ConfirmarEntrega">
+        <omgdi:waypoint x="1585" y="615.0"/>
+        <omgdi:waypoint x="1620" y="615.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_ConfirmarEntrega_Unir" id="BPMNEdge_Flow_ConfirmarEntrega_Unir">
+        <omgdi:waypoint x="1775" y="615.0"/>
+        <omgdi:waypoint x="1810" y="615"/>
+        <omgdi:waypoint x="1810" y="310"/>
+        <omgdi:waypoint x="1835" y="310.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Unir_Finalizar" id="BPMNEdge_Flow_Unir_Finalizar">
+        <omgdi:waypoint x="1875" y="310.0"/>
+        <omgdi:waypoint x="1940" y="252.5"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge bpmnElement="Flow_Finalizar_Fin" id="BPMNEdge_Flow_Finalizar_Fin">
+        <omgdi:waypoint x="2095" y="252.5"/>
+        <omgdi:waypoint x="2150" y="305.0"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

@@ -122,6 +122,22 @@ public class PedidoService {
                 .toList();
     }
 
+    @Transactional
+    public void asociarProcessInstanceId(
+            Long pedidoId,
+            String processInstanceId
+    ) {
+
+        Pedido pedido = pedidoRepository.findById(pedidoId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Pedido no encontrado: " + pedidoId
+                        )
+                );
+
+        pedido.setProcessInstanceId(processInstanceId);
+    }
+
     public void eliminar(Long id) {
         Pedido pedido = obtenerPedido(id);
         pedidoRepository.delete(pedido);
@@ -172,6 +188,21 @@ public class PedidoService {
         }
 
         pedido.recalcularTotal();
+
+        return toResponse(pedido);
+    }
+
+    public PedidoResponse cancelarPorVencimiento(Long id) {
+
+        Pedido pedido = obtenerPedido(id);
+
+        if (pedido.getEstado() != EstadoPedido.PENDIENTE_PAGO) {
+            throw new BusinessRuleException(
+                    "Solo se puede cancelar por vencimiento un pedido en estado PENDIENTE_PAGO"
+            );
+        }
+
+        pedido.setEstado(EstadoPedido.CANCELADO);
 
         return toResponse(pedido);
     }

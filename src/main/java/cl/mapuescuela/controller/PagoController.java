@@ -1,33 +1,36 @@
 package cl.mapuescuela.controller;
 
-import cl.mapuescuela.dto.pago.RevisionPagoRequest;
-import cl.mapuescuela.dto.pago.RevisionPagoResponse;
-import cl.mapuescuela.service.PagoService;
-import jakarta.validation.Valid;
+import cl.mapuescuela.service.RevisionPagoService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/pedidos/{pedidoId}/pago")
 public class PagoController {
-    private final PagoService pagoService;
 
-    public PagoController(PagoService pagoService) {
-        this.pagoService = pagoService;
+    private final RevisionPagoService revisionPagoService;
+
+    public PagoController(
+            RevisionPagoService revisionPagoService
+    ) {
+        this.revisionPagoService = revisionPagoService;
     }
 
     @PostMapping("/aprobar")
-    public RevisionPagoResponse aprobarPago(
-            @PathVariable Long pedidoId,
-            @Valid @RequestBody RevisionPagoRequest request
+    public ResponseEntity<Void> aprobarPago(
+            @PathVariable Long pedidoId
     ) {
-        return pagoService.aprobarPago(pedidoId, request);
+        revisionPagoService.aprobar(pedidoId);
+
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/rechazar")
-    public RevisionPagoResponse rechazarPago(
-            @PathVariable Long pedidoId,
-            @Valid @RequestBody RevisionPagoRequest request
+    public ResponseEntity<Void> rechazarPago(
+            @PathVariable Long pedidoId
     ) {
-        return pagoService.rechazarPago(pedidoId, request);
+        revisionPagoService.rechazar(pedidoId);
+
+        return ResponseEntity.noContent().build();
     }
 }
